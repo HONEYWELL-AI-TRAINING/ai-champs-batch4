@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<!--
+  ===========================================================================
+  Module concept page — lab-visualizer skill.
+
+  COPY this file to labs/module-NN/index.html, then replace the [BRACKETED]
+  placeholders and the `quizData` array with module-specific content.
+
+  Keep the <style> and <script> blocks byte-identical between modules. They
+  carry fixes that are easy to silently reintroduce when a page is written
+  from memory instead of copied:
+
+    * the score readout stays hidden until submit (a live score lets a learner
+      click each option and read the answer off the counter)
+    * .card-body uses grid-template-rows, not max-height, so a tall concept
+      card cannot clip its own content
+    * flow-step animation delays use :nth-of-type, because :nth-child counts
+      the arrow <span>s and lands the delays on the wrong elements
+    * prefers-reduced-motion restores opacity — with animations disabled, a
+      fadeInUp element that starts at opacity:0 never becomes visible
+    * concept headers and quiz options are real focusable controls, so the
+      page is keyboard navigable
+
+  Delete any section the module does not need (comparison, stats, tabs).
+  ===========================================================================
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <title>Context Engineering &amp; Optimization Techniques</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --primary-hover: #2980b9;
+            --secondary: #2ecc71;
+            --accent: #e74c3c;
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface-hover: #334155;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --correct: #22c55e;
+            --incorrect: #ef4444;
+            --neutral: #64748b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+        }
+
+        /* Visible focus ring on every interactive element. */
+        :focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+        }
+
+        /* ── Hero ─────────────────────────────────── */
+        .hero {
+            background: linear-gradient(135deg, var(--surface) 0%, var(--bg) 100%);
+            padding: 4rem 2rem 3rem;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+        .hero h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .hero .subtitle { color: var(--text-muted); font-size: 1.1rem; }
+        .hero .badge {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-top: 1rem;
+        }
+
+        /* ── Layout ───────────────────────────────── */
+        .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+        /* ── Section Headers ──────────────────────── */
+        .section-header {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 3rem 0 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        /* ── Concept Cards ────────────────────────── */
+        .concept-card {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 1.75rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+            transition: border-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .concept-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(52, 152, 219, 0.15);
+        }
+        /* Accordion pattern: the heading wraps the button, so the card is
+           reachable by Tab and toggles on Enter/Space while still appearing
+           in the document outline. A <div onclick> is invisible to keyboard
+           users; a <button> wrapping the <h3> is invalid HTML. */
+        .concept-card .card-heading { margin: 0; font-size: inherit; font-weight: inherit; }
+        .concept-card .card-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            width: 100%;
+            background: none;
+            border: none;
+            color: inherit;
+            font: inherit;
+            text-align: left;
+            cursor: pointer;
+            user-select: none;
+        }
+        .concept-card .card-title-text { flex: 1; font-size: 1.2rem; font-weight: 600; }
+        .concept-card .toggle-icon {
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+            color: var(--primary);
+        }
+        .concept-card.open .toggle-icon { transform: rotate(90deg); }
+
+        /* grid-template-rows animates to the content's natural height, so a
+           card taller than an arbitrary max-height is never clipped. */
+        .concept-card .card-body {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.4s ease;
+        }
+        .concept-card.open .card-body { grid-template-rows: 1fr; }
+        .concept-card .card-body-inner { overflow: hidden; }
+        .concept-card.open .card-body-inner { padding-top: 1.25rem; }
+        .concept-card .definition {
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+
+        /* ── Diagram Boxes ────────────────────────── */
+        .diagram-container {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            display: flex;
+            justify-content: center;
+        }
+        .diagram-container svg { max-width: 100%; height: auto; }
+
+        /* ── Animated Flow ────────────────────────── */
+        .flow {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 1rem 0;
+        }
+        .flow-step {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0.75rem 1.25rem;
+            text-align: center;
+            min-width: 120px;
+            opacity: 0;
+            transform: translateY(10px);
+            animation: fadeInUp 0.4s forwards;
+        }
+        /* :nth-of-type counts <div>s only. :nth-child would count the arrow
+           <span>s too and apply the delays to the wrong elements. */
+        .flow-step:nth-of-type(2) { animation-delay: 0.1s; }
+        .flow-step:nth-of-type(3) { animation-delay: 0.2s; }
+        .flow-step:nth-of-type(4) { animation-delay: 0.3s; }
+        .flow-step:nth-of-type(5) { animation-delay: 0.4s; }
+        .flow-step .step-label { font-size: 0.8rem; color: var(--text-muted); }
+        .flow-step .step-name { font-weight: 600; }
+        .flow-arrow { color: var(--primary); font-size: 1.5rem; animation: pulse 1.5s infinite; }
+
+        @keyframes fadeInUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ── Comparison Table ─────────────────────── */
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .comparison .col {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.25rem;
+            border: 1px solid var(--border);
+        }
+        .comparison .col h4 { margin-bottom: 0.75rem; }
+        .comparison .col.pro { border-top: 3px solid var(--correct); }
+        .comparison .col.con { border-top: 3px solid var(--incorrect); }
+        .comparison ul { list-style: none; padding: 0; }
+        .comparison li { padding: 0.35rem 0; padding-left: 1.25rem; position: relative; }
+        .comparison li::before { content: '•'; position: absolute; left: 0; color: var(--primary); }
+
+        /* ── Interactive Code Block ────────────────── */
+        .code-block {
+            background: var(--surface);
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 1rem 0;
+            border: 1px solid var(--border);
+        }
+        .code-block .code-header {
+            background: var(--bg);
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+        .code-block pre {
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        /* ── Stats Row ────────────────────────────── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .stat-card {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        .stat-card .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .stat-card .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+        .stat-card .stat-source {
+            font-size: 0.7rem;
+            color: var(--neutral);
+            margin-top: 0.5rem;
+        }
+
+        /* ── Tabs ─────────────────────────────────── */
+        .tabs { display: flex; gap: 0.5rem; margin: 1rem 0; flex-wrap: wrap; }
+        .tab-btn {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font: inherit;
+            font-size: 0.95rem;
+            transition: background 0.2s, color 0.2s, border-color 0.2s;
+        }
+        .tab-btn[aria-selected="true"] {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .tab-content[hidden] { display: none; }
+
+        /* ── Quiz Section ─────────────────────────── */
+        .quiz-section {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 2px solid var(--accent);
+        }
+        .quiz-header {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+        }
+        .quiz-progress {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .quiz-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--border);
+            transition: background 0.3s;
+        }
+        .quiz-dot.answered { background: var(--primary); }
+        .quiz-dot.correct { background: var(--correct); }
+        .quiz-dot.incorrect { background: var(--incorrect); }
+        .quiz-stats {
+            display: flex;
+            gap: 1rem;
+            margin-top: 0.75rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+        }
+        .question-card {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--neutral);
+            transition: border-color 0.3s;
+        }
+        .question-card.correct { border-left-color: var(--correct); }
+        .question-card.incorrect { border-left-color: var(--incorrect); }
+        .question-number { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; padding: 0; }
+        .question-text { font-weight: 500; margin-bottom: 1rem; }
+        .options { display: flex; flex-direction: column; gap: 0.5rem; }
+
+        /* Real radio inputs: arrow keys move within a question, Tab moves
+           between questions, and screen readers announce "2 of 4". */
+        .option {
+            display: block;
+            position: relative;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+            color: var(--text);
+            cursor: pointer;
+            text-align: left;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .option input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+        .option:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
+        .option:hover:not(.locked) { border-color: var(--primary); background: rgba(52,152,219,0.1); }
+        .option.locked { cursor: not-allowed; }
+        .option.selected { border-color: var(--primary); background: rgba(52,152,219,0.15); }
+        .option.correct { border-color: var(--correct); background: rgba(34,197,94,0.15); }
+        .option.incorrect { border-color: var(--incorrect); background: rgba(239,68,68,0.15); }
+        /* Result marked with a glyph as well as colour (WCAG 1.4.1). */
+        .option .marker { font-weight: 700; }
+        .option.correct .marker::before { content: '\2713\00a0'; color: var(--correct); }
+        .option.incorrect .marker::before { content: '\2717\00a0'; color: var(--incorrect); }
+
+        .feedback {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        .feedback[hidden] { display: none; }
+        .feedback.correct { background: rgba(34,197,94,0.1); color: var(--correct); }
+        .feedback.incorrect { background: rgba(239,68,68,0.1); color: var(--incorrect); }
+
+        .quiz-notice {
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            background: rgba(231,76,60,0.12);
+            color: #f5a097;
+            font-size: 0.9rem;
+        }
+        .quiz-notice[hidden] { display: none; }
+
+        .quiz-actions { display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap; }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-weight: 500;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--surface-hover); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* ── Responsive ────────────────────────────── */
+        @media (max-width: 640px) {
+            .hero { padding: 2.5rem 1rem 2rem; }
+            .hero h1 { font-size: 1.75rem; }
+            .container { padding: 1rem; }
+            .comparison { grid-template-columns: 1fr; }
+            .flow { justify-content: center; }
+            .quiz-actions .btn { flex: 1 1 100%; }
+        }
+
+        /* ── Reduced motion ────────────────────────── */
+        /* Without the explicit opacity/transform reset, .flow-step keeps the
+           opacity:0 it starts at and the content is invisible. */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+            .flow-step { opacity: 1; transform: none; }
+        }
+    </style>
+</head>
+<body>
+    <!-- ════════════════════════════════════════════ -->
+    <!-- HERO                                        -->
+    <!-- ════════════════════════════════════════════ -->
+    <section class="hero">
+        <h1>Context Engineering &amp; Optimization Techniques</h1>
+        <p class="subtitle">Module 03 — selecting, compressing, and scoping what you feed the model so output quality goes up while token cost stays flat.</p>
+        <span class="badge">Interactive Concept Guide</span>
+    </section>
+
+    <div class="container">
+        <!-- ══════════════════════════════════════════ -->
+        <!-- CONCEPT                                    -->
+        <!-- ══════════════════════════════════════════ -->
+        <h2 class="section-header">Concept</h2>
+
+        <div class="concept-card open">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="true" aria-controls="concept-1-body">
+                    <span class="card-title-text">1 · Prompt Engineering → Context Engineering</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-1-body">
+                <div class="card-body-inner">
+                    <p class="definition">Prompt engineering shapes <strong>how you ask</strong> — framing, role, constraints, examples. Context engineering decides <strong>what the model knows about your repository</strong> before the prompt is ever sent. The second is what every later module depends on.</p>
+
+                    <div class="flow">
+                        <div class="flow-step">
+                            <div class="step-label">Stage 1 · Prompt-only</div>
+                            <div class="step-name">One well-worded prompt, no repo context. Fine for small self-contained tasks; breaks on anything touching existing code</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">Stage 2 · Structured prompting</div>
+                            <div class="step-name">Frame + role + constraints + example applied consistently. Repeatable, but still no persistent view of the repo</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">Stage 3 · Context-engineered</div>
+                            <div class="step-name">Repo, design, and contract context deliberately selected, compressed, and scoped before the prompt</div>
+                        </div>
+                    </div>
+
+                    <p class="definition">A prompt-only pass on <code>GET /api/tasks/stats</code> typically ships the wrong status keys after four iterations. A context-engineered pass is right the first time — for a little more up-front context.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="concept-card">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-2-body">
+                    <span class="card-title-text">2 · The Finite Attention Budget</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-2-body">
+                <div class="card-body-inner">
+                    <p class="definition">The model has a limited attention budget, and <strong>every irrelevant file you attach spends it — on every turn</strong>. A sharp 800-token context beats a vague 8,000-token one, at a tenth of the cost.</p>
+
+                    <div class="diagram-container">
+                        <svg viewBox="0 0 460 180" width="460" height="180"
+                             role="img" aria-label="Two contexts compared. A vague 8,000-token context: a large box, mostly shaded as noise with a thin band of signal, labelled slow and expensive and often wrong. A sharp 800-token context: a small box that is almost all signal, labelled fast, cheap, right first time.">
+                            <text x="115" y="24" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="11" font-weight="700">~8,000 tokens · vague</text>
+                            <rect x="20" y="34" width="190" height="110" rx="8" fill="#7f1d1d" stroke="#ef4444"/>
+                            <rect x="20" y="34" width="190" height="22" rx="8" fill="#1e3a8a"/>
+                            <text x="115" y="49" text-anchor="middle" fill="#e2e8f0" font-family="sans-serif" font-size="9">signal</text>
+                            <text x="115" y="100" text-anchor="middle" fill="#fecaca" font-family="sans-serif" font-size="9">noise — spent every turn</text>
+                            <text x="115" y="162" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="9">slow · expensive · often wrong</text>
+                            <text x="345" y="24" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="11" font-weight="700">~800 tokens · sharp</text>
+                            <rect x="300" y="90" width="90" height="54" rx="8" fill="#14532d" stroke="#22c55e"/>
+                            <rect x="300" y="90" width="90" height="42" rx="8" fill="#1e3a8a"/>
+                            <text x="345" y="115" text-anchor="middle" fill="#e2e8f0" font-family="sans-serif" font-size="9">signal</text>
+                            <text x="345" y="162" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="9">fast · cheap · right first time</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="concept-card">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-3-body">
+                    <span class="card-title-text">3 · Context Boundaries: What Actually Reaches the Agent</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-3-body">
+                <div class="card-body-inner">
+                    <p class="definition">Everything outside the innermost box is <strong>available but deliberately not sent</strong>. Drawing this boundary task by task is what keeps token usage predictable.</p>
+
+                    <div class="diagram-container">
+                        <svg viewBox="0 0 460 240" width="460" height="240"
+                             role="img" aria-label="Three nested boxes. Outer: enterprise and repository standards. Middle: repository and design context. Innermost: task-scoped context — what the agent actually sees for this task.">
+                            <rect x="10" y="10" width="440" height="220" rx="10" fill="#0f172a" stroke="#334155"/>
+                            <text x="230" y="32" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="11" font-weight="700">ENTERPRISE &amp; REPOSITORY STANDARDS</text>
+                            <rect x="45" y="46" width="370" height="150" rx="10" fill="#1e293b" stroke="#334155"/>
+                            <text x="230" y="68" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="11" font-weight="700">REPOSITORY &amp; DESIGN CONTEXT</text>
+                            <rect x="90" y="86" width="280" height="94" rx="10" fill="#1e3a8a" stroke="#3b82f6"/>
+                            <text x="230" y="128" text-anchor="middle" fill="#e2e8f0" font-family="sans-serif" font-size="13" font-weight="700">TASK-SCOPED CONTEXT</text>
+                            <text x="230" y="148" text-anchor="middle" fill="#cbd5e1" font-family="sans-serif" font-size="10">what the agent actually sees for this task</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- TECHNIQUES                                 -->
+        <!-- ══════════════════════════════════════════ -->
+        <h2 class="section-header">Techniques · Select → Compress → Scope</h2>
+
+        <div class="concept-card">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-4-body">
+                    <span class="card-title-text">4 · Select — the few sources that matter</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-4-body">
+                <div class="card-body-inner">
+                    <p class="definition"><strong>The select test:</strong> "If I remove this, could Copilot get the task wrong in a way the other context wouldn't catch?" If no → reject. The selected list should be <strong>3–5 items, not 10</strong>.</p>
+
+                    <div class="comparison">
+                        <div class="col pro">
+                            <h4>✅ Keep — names a failure it prevents</h4>
+                            <ul>
+                                <li><code>copilot-instructions.md</code> — layer rules, error contract</li>
+                                <li>The repository-layer file — the pattern the count query must follow</li>
+                                <li>The existing list handler — response &amp; error style to mirror</li>
+                                <li>The ~6 contract lines — the status enum and JSON shape</li>
+                            </ul>
+                        </div>
+                        <div class="col con">
+                            <h4>❌ Reject — nothing else catches nothing new</h4>
+                            <ul>
+                                <li>Service layer — thin pass-through, the repo file already shows it</li>
+                                <li><code>schema.sql</code> — no schema change in this task</li>
+                                <li>Frontend — no UI change</li>
+                                <li>Other backends — parity is a later <em>check</em>, not context</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <p class="definition"><strong>Discovery tip:</strong> ask <code>#codebase</code> "which files would I change, and which is the best pattern to copy? Paths only" — then verify each path and attach the good ones explicitly. Good for discovery, worse for precision.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="concept-card">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-5-body">
+                    <span class="card-title-text">5 · Compress — down to the lines that bind</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-5-body">
+                <div class="card-body-inner">
+                    <p class="definition">The selected files are still big. Write the <strong>actual text you'd paste</strong> instead — expect it <strong>5–20× smaller</strong> than the raw sources.</p>
+
+                    <div class="flow">
+                        <div class="flow-step">
+                            <div class="step-label">Quote what binds</div>
+                            <div class="step-name">The 3–6 instruction lines that actually constrain this task — not a vague summary</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">Reference, don't paste</div>
+                            <div class="step-name">"Follow <code>list_tasks</code> in <code>task_repository.py</code>" beats pasting the file</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">One example, not five</div>
+                            <div class="step-name">A single canonical shape anchors the format</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">Layer rules-first</div>
+                            <div class="step-name">Most decision-relevant lines at the top — truncation eats the bottom</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="concept-card">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-6-body">
+                    <span class="card-title-text">6 · Scope — this task, and only this task</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-6-body">
+                <div class="card-body-inner">
+                    <p class="definition">Scope is what stops the last task's context bleeding into this one.</p>
+
+                    <div class="flow">
+                        <div class="flow-step">
+                            <div class="step-label">State non-goals</div>
+                            <div class="step-name">"No frontend change. No change to <code>GET /api/tasks</code>. No new columns."</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">New chat per task</div>
+                            <div class="step-name">Don't carry the previous task's attachments and history</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">Reference, don't re-attach</div>
+                            <div class="step-name">A file already discussed is already in the thread</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">Right-size the model</div>
+                            <div class="step-name">Reach for a large-context model only after a tight brief has failed</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- PRACTICE                                   -->
+        <!-- ══════════════════════════════════════════ -->
+        <h2 class="section-header">Practice · Measure &amp; Bottle It</h2>
+
+        <div class="concept-card">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-7-body">
+                    <span class="card-title-text">7 · Measure — token budgeting</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-7-body">
+                <div class="card-body-inner">
+                    <p class="definition">"Context engineering is worth it" is an opinion until you have numbers. Score the same task twice — prompt-only vs context-engineered — on quality, tokens, iterations, and time.</p>
+
+                    <div class="code-block">
+                        <div class="code-header">Rough estimate for comparing two contexts (~4 chars / token)</div>
+                        <pre><code>tools/estimate-tokens.sh .github/copilot-instructions.md \
+  backend-python/repositories/task_repository.py \
+  backend-python/routers/tasks.py \
+  backend-python/tests/test_tasks_api.py
+
+# TOTAL   ~3,900 tokens   (raw sources)
+# brief   ~380 tokens     (10x smaller — same result)</code></pre>
+                    </div>
+
+                    <p class="definition">For exact counts: the VS Code chat context gauge, or <code>npx @anthropic-ai/tokenizer &lt;file&gt;</code>. The <strong>ratio</strong> matters, not the precision — and prompt-only usually costs <em>more</em> total tokens once you add up its iteration prompts and re-reads.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="concept-card">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-8-body">
+                    <span class="card-title-text">8 · Bottle it — <code>/context-brief</code> + <code>CONTEXT.md</code></span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-8-body">
+                <div class="card-body-inner">
+                    <p class="definition">Turn "attach exactly these" from a lucky prompt into a team habit with an artifact behind it.</p>
+
+                    <div class="code-block">
+                        <div class="code-header">.github/prompts/context-brief.prompt.md — the fixed structure it enforces</div>
+                        <pre><code>## Rules        3–6 lines of copilot-instructions.md that bind this task
+## Contract     exact API shape, fields, types, status codes (≤ 6 lines)
+## Pattern      the one file/function to mirror — path + one line
+## Test         the one test file + the 1–2 cases to add
+## Non-goals    what this task must NOT change
+
+Total brief ≤ 400 tokens. If it won't fit, the task is too big — split it.</code></pre>
+                    </div>
+
+                    <p class="definition"><code>CONTEXT.md</code> records the per-task routine (run <code>/context-brief</code>, attach only its output, add more only if that fails) plus what's usually enough and what to leave out. An optional shared <strong>Copilot Space</strong> is <code>CONTEXT.md</code> as reusable, shareable context.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- VISUAL COMPARISON                         -->
+        <!-- ══════════════════════════════════════════ -->
+        <h2 class="section-header">Optimization — Do This / Not That</h2>
+        <p class="definition">The habits that keep a context sharp, and the ones that quietly inflate token cost without improving output.</p>
+
+        <div class="comparison">
+            <div class="col pro">
+                <h4>✅ Do this</h4>
+                <ul>
+                    <li>Keep a file only if you can name a bug it prevents that nothing else catches</li>
+                    <li>Quote the 3–6 binding lines; reference files instead of pasting them</li>
+                    <li>Put decision-relevant lines first — truncation eats the bottom</li>
+                    <li>New chat when the task changes; state non-goals explicitly</li>
+                    <li>Reproduce the result with less, then keep the smaller context</li>
+                </ul>
+            </div>
+            <div class="col con">
+                <h4>❌ Not that</h4>
+                <ul>
+                    <li>Attach whole files when a <code>#selection</code> would do</li>
+                    <li>Re-send the same context on every follow-up turn</li>
+                    <li>Copy entire specs or issue threads verbatim into the prompt</li>
+                    <li>Let context accumulate across unrelated tasks in one session</li>
+                    <li>Reach for a big-context model before a tight brief has failed</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- INTERACTIVE TABS                          -->
+        <!-- ══════════════════════════════════════════ -->
+        <h2 class="section-header">Worked Example · <code>GET /api/tasks/stats</code></h2>
+        <p class="definition">The three moves applied to one real feature — a counts-by-status endpoint. Pick a move.</p>
+
+        <div class="tabs" role="tablist" aria-label="The three moves applied">
+            <button class="tab-btn" type="button" role="tab" id="tab-btn-1"
+                    aria-selected="true" aria-controls="tab-1">Select</button>
+            <button class="tab-btn" type="button" role="tab" id="tab-btn-2"
+                    aria-selected="false" aria-controls="tab-2">Compress</button>
+            <button class="tab-btn" type="button" role="tab" id="tab-btn-3"
+                    aria-selected="false" aria-controls="tab-3">Scope</button>
+        </div>
+
+        <div id="tab-1" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-1" tabindex="0">
+            <p><strong>Selected (4):</strong> repo instructions, the repository-layer file, the existing list handler, the ~6 API-contract lines. Test file optional.</p>
+            <p><strong>Rejected:</strong> service layer (thin pass-through), <code>schema.sql</code> (no schema change), frontend (no UI), the other two backends (parity is a later check), issue history (nothing relevant).</p>
+        </div>
+        <div id="tab-2" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-2" tabindex="0" hidden>
+            <p>Raw selected sources: ~3,900 tokens. The compressed brief quotes only: the layer rule, the error-contract line, the schema-owner line, the <code>todo / in-progress / done</code> enum, the JSON shape, <code>total == sum</code>, the one pattern function, and the one test case.</p>
+            <p><strong>Result:</strong> ~380 tokens — about 10× smaller, same rubric score.</p>
+        </div>
+        <div id="tab-3" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-3" tabindex="0" hidden>
+            <p><strong>Non-goals stated:</strong> no frontend change, no change to <code>GET /api/tasks</code>, no new columns.</p>
+            <p><strong>Session:</strong> fresh chat, brief attached alone (instruction file still active), nothing carried from the previous task. Add more context only if the brief-only run fails — and if it does, that missing line was load-bearing: add it to the brief.</p>
+        </div>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- SELF-CHECK QUIZ — 5 QUESTIONS             -->
+        <!-- ══════════════════════════════════════════ -->
+        <div class="quiz-section">
+            <h2 class="section-header">Self-Check Quiz</h2>
+
+            <div class="quiz-header">
+                <p>Test your understanding — 5 questions, 70% to pass.</p>
+                <div class="quiz-progress" id="quiz-progress" aria-hidden="true">
+                    <div class="quiz-dot" data-q="1"></div>
+                    <div class="quiz-dot" data-q="2"></div>
+                    <div class="quiz-dot" data-q="3"></div>
+                    <div class="quiz-dot" data-q="4"></div>
+                    <div class="quiz-dot" data-q="5"></div>
+                </div>
+                <div class="quiz-stats" id="quiz-stats" role="status" aria-live="polite"></div>
+            </div>
+
+            <form id="quiz-form">
+                <div id="quiz-container"></div>
+                <p class="quiz-notice" id="quiz-notice" role="alert" hidden></p>
+                <div class="quiz-actions">
+                    <button class="btn btn-primary" type="submit" id="submit-btn">Submit Answers</button>
+                    <button class="btn btn-secondary" type="button" id="reset-btn">Reset</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════ -->
+    <!-- JAVASCRIPT (all inline, zero dependencies)  -->
+    <!-- ════════════════════════════════════════════ -->
+    <script>
+    (function () {
+        'use strict';
+
+        // ── Concept card toggle ────────────────────
+        // Delegated, so no inline onclick and no globals.
+        document.addEventListener('click', function (e) {
+            const header = e.target.closest('.card-header');
+            if (!header) return;
+            const card = header.closest('.concept-card');
+            const open = card.classList.toggle('open');
+            header.setAttribute('aria-expanded', String(open));
+        });
+
+        // ── Tabs ───────────────────────────────────
+        document.addEventListener('click', function (e) {
+            // closest() rather than e.target: a click landing on markup
+            // inside the button would otherwise be missed.
+            const btn = e.target.closest('.tab-btn');
+            if (!btn) return;
+            const list = btn.closest('[role="tablist"]');
+
+            list.querySelectorAll('.tab-btn').forEach(function (b) {
+                b.setAttribute('aria-selected', 'false');
+                const panel = document.getElementById(b.getAttribute('aria-controls'));
+                if (panel) panel.hidden = true;
+            });
+
+            btn.setAttribute('aria-selected', 'true');
+            const active = document.getElementById(btn.getAttribute('aria-controls'));
+            if (active) active.hidden = false;
+        });
+
+        // Arrow-key navigation between tabs, per the WAI-ARIA tabs pattern.
+        document.addEventListener('keydown', function (e) {
+            const btn = e.target.closest('.tab-btn');
+            if (!btn || (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft')) return;
+            const tabs = Array.from(btn.closest('[role="tablist"]').querySelectorAll('.tab-btn'));
+            const next = tabs[(tabs.indexOf(btn) + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
+            next.focus();
+            next.click();
+        });
+
+        // ── Quiz data ──────────────────────────────
+        // `correct` is a 0-based index into `options`.
+        const quizData = [
+            {
+                id: 1,
+                text: "How does context engineering differ from prompt engineering?",
+                options: [
+                    "Context engineering replaces prompt engineering — the six prompt moves are obsolete",
+                    "Prompt engineering shapes how you ask; context engineering decides what the model knows about your repository before the prompt is sent",
+                    "They are the same thing with different names",
+                    "Context engineering only matters for very large codebases"
+                ],
+                correct: 1,
+                explanation: "The prompt moves — frame, role, constraints, example — still apply; structured prompting sits on top of them. What they cannot do is give the model your repo's layer rules, error contract, and patterns. That gap is exactly what selecting, compressing, and scoping context fills, and it matters on any task that touches existing code."
+            },
+            {
+                id: 2,
+                text: "You are deciding whether to attach a file to the context. What is the \"select test\"?",
+                options: [
+                    "Attach it if it is anywhere in the same feature area",
+                    "Attach it if it is under 500 lines",
+                    "Keep it only if you can name a failure it prevents that nothing else in the context would catch — otherwise reject it",
+                    "Attach everything and let the model ignore what it doesn't need"
+                ],
+                correct: 2,
+                explanation: "The bar is a specific, named failure the file uniquely prevents. \"Related to the feature\" lets almost everything in; size is not the point; and \"attach everything\" spends the model's attention budget on every turn. The selected list should land at 3–5 items, not 10."
+            },
+            {
+                id: 3,
+                text: "True or False: when compressing a context brief, the order of the lines doesn't matter because the model reads all of it.",
+                options: ["True", "False"],
+                correct: 1,
+                explanation: "False. Put the most decision-relevant lines first — truncation eats the bottom. If the context is trimmed to fit, you want to lose the least important lines, not the rule that keeps the aggregation query in the repository layer."
+            },
+            {
+                id: 4,
+                text: "Pass A (prompt-only) took four iterations to get right. Pass B (context-engineered) was correct on the first try with a larger up-front context. Which usually costs more total tokens?",
+                options: [
+                    "Pass B — it always sends more context",
+                    "Pass A — its iteration prompts and repeated file re-reads add up past Pass B's single larger context",
+                    "They cost exactly the same",
+                    "Impossible to compare without a paid tokenizer"
+                ],
+                correct: 1,
+                explanation: "The up-front context in Pass B looks bigger in isolation, but every follow-up in Pass A resends context and the agent re-reads files each round. By the time prompt-only is correct it has usually spent more tokens and more wall-clock time. A rough chars/4 estimate is enough to see the ratio."
+            },
+            {
+                id: 5,
+                text: "The /context-brief prompt caps every brief at ~400 tokens and says \"if it won't fit, tell me to split the task.\" Why the hard limit?",
+                options: [
+                    "Longer briefs crash the model",
+                    "It is an arbitrary number with no real purpose",
+                    "It forces genuine compression and turns an over-large context into a signal that the task itself is too big for one pass",
+                    "GitHub bills per 400-token block"
+                ],
+                correct: 2,
+                explanation: "A cap makes you choose the lines that bind instead of pasting everything, and when a task genuinely can't be briefed in 400 tokens that's information — split it. A padded brief isn't free: it spends the model's attention budget on every turn of the conversation."
+            }
+        ];
+
+        const PASS_MARK = 70;
+        const answers = {};
+        let submitted = false;
+
+        const form      = document.getElementById('quiz-form');
+        const container = document.getElementById('quiz-container');
+        const stats     = document.getElementById('quiz-stats');
+        const notice    = document.getElementById('quiz-notice');
+        const submitBtn = document.getElementById('submit-btn');
+        const resetBtn  = document.getElementById('reset-btn');
+
+        function esc(value) {
+            return String(value).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+
+        function renderQuiz() {
+            container.innerHTML = quizData.map(function (q, idx) {
+                const opts = q.options.map(function (opt, i) {
+                    return '<label class="option" data-q="' + q.id + '" data-i="' + i + '">' +
+                             '<input type="radio" name="q' + q.id + '" value="' + i + '">' +
+                             '<span class="marker"></span><span>' + esc(opt) + '</span>' +
+                           '</label>';
+                }).join('');
+
+                return '<fieldset class="question-card" data-q="' + q.id + '">' +
+                         '<legend class="question-number">Question ' + (idx + 1) + ' of ' + quizData.length + '</legend>' +
+                         '<p class="question-text">' + esc(q.text) + '</p>' +
+                         '<div class="options">' + opts + '</div>' +
+                         '<p class="feedback" id="fb-' + q.id + '" role="status" aria-live="polite" hidden></p>' +
+                       '</fieldset>';
+            }).join('');
+        }
+
+        container.addEventListener('change', function (e) {
+            if (submitted || e.target.type !== 'radio') return;
+            const label = e.target.closest('.option');
+            const qId = Number(label.dataset.q);
+
+            // Scoped to .option — .question-card and .quiz-dot carry the same
+            // data-q attribute and must not be caught by this query.
+            container.querySelectorAll('.option[data-q="' + qId + '"]')
+                     .forEach(function (el) { el.classList.remove('selected'); });
+
+            label.classList.add('selected');
+            answers[qId] = Number(label.dataset.i);
+            notice.hidden = true;
+            updateProgress();
+        });
+
+        // Before submission this shows the answered count ONLY. A running
+        // score here would let a learner cycle options and read off the
+        // answers without ever submitting.
+        function updateProgress() {
+            const answered = Object.keys(answers).length;
+
+            if (!submitted) {
+                // Only repaint the dots pre-submit. After grading they carry
+                // correct/incorrect, and resetting them here would wipe that.
+                document.querySelectorAll('.quiz-dot').forEach(function (dot) {
+                    dot.className = 'quiz-dot' + (answers[Number(dot.dataset.q)] !== undefined ? ' answered' : '');
+                });
+                stats.innerHTML = '<span>Answered: <strong>' + answered + '</strong>/' + quizData.length + '</span>';
+                return;
+            }
+
+            const correct = calcScore();
+            const pct = Math.round((correct / quizData.length) * 100);
+            stats.innerHTML =
+                '<span>Correct: <strong>' + correct + '</strong>/' + quizData.length + '</span>' +
+                '<span>Score: <strong>' + pct + '%</strong></span>' +
+                '<span>' + (pct >= PASS_MARK ? 'Passed' : 'Below ' + PASS_MARK + '% — review and retry') + '</span>';
+        }
+
+        function calcScore() {
+            return quizData.filter(function (q) { return answers[q.id] === q.correct; }).length;
+        }
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            // Inline message rather than alert(): alert() is suppressed in
+            // some embedded contexts and cannot be styled or announced.
+            const missing = quizData.find(function (q) { return answers[q.id] === undefined; });
+            if (missing) {
+                notice.textContent = 'Answer all ' + quizData.length + ' questions before submitting.';
+                notice.hidden = false;
+                const card = container.querySelector('.question-card[data-q="' + missing.id + '"]');
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const input = card.querySelector('input');
+                if (input) input.focus();
+                return;
+            }
+
+            submitted = true;
+            notice.hidden = true;
+            submitBtn.disabled = true;
+
+            quizData.forEach(function (q) {
+                const card = container.querySelector('.question-card[data-q="' + q.id + '"]');
+                const wasCorrect = answers[q.id] === q.correct;
+
+                card.querySelectorAll('.option').forEach(function (opt) {
+                    const i = Number(opt.dataset.i);
+                    const input = opt.querySelector('input');
+                    if (input) input.disabled = true;
+                    opt.classList.add('locked');
+                    if (i === q.correct) opt.classList.add('correct');
+                    else if (answers[q.id] === i) opt.classList.add('incorrect');
+                });
+
+                const fb = document.getElementById('fb-' + q.id);
+                fb.textContent = (wasCorrect ? '✓ Correct. ' : '✗ Incorrect. ') + q.explanation;
+                fb.className = 'feedback ' + (wasCorrect ? 'correct' : 'incorrect');
+                fb.hidden = false;
+                card.classList.add(wasCorrect ? 'correct' : 'incorrect');
+
+                const dot = document.querySelector('.quiz-dot[data-q="' + q.id + '"]');
+                dot.className = 'quiz-dot ' + (wasCorrect ? 'correct' : 'incorrect');
+            });
+
+            updateProgress();
+        });
+
+        resetBtn.addEventListener('click', function () {
+            Object.keys(answers).forEach(function (k) { delete answers[k]; });
+            submitted = false;
+            submitBtn.disabled = false;
+            notice.hidden = true;
+            renderQuiz();
+            updateProgress();
+        });
+
+        // ── Init ───────────────────────────────────
+        renderQuiz();
+        updateProgress();
+    })();
+    </script>
+</body>
+</html>

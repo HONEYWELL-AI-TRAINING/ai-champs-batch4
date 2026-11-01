@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<!--
+  ===========================================================================
+  Module concept page — lab-visualizer skill.
+
+  COPY this file to labs/module-NN/index.html, then replace the [BRACKETED]
+  placeholders and the `quizData` array with module-specific content.
+
+  Keep the <style> and <script> blocks byte-identical between modules. They
+  carry fixes that are easy to silently reintroduce when a page is written
+  from memory instead of copied:
+
+    * the score readout stays hidden until submit (a live score lets a learner
+      click each option and read the answer off the counter)
+    * .card-body uses grid-template-rows, not max-height, so a tall concept
+      card cannot clip its own content
+    * flow-step animation delays use :nth-of-type, because :nth-child counts
+      the arrow <span>s and lands the delays on the wrong elements
+    * prefers-reduced-motion restores opacity — with animations disabled, a
+      fadeInUp element that starts at opacity:0 never becomes visible
+    * concept headers and quiz options are real focusable controls, so the
+      page is keyboard navigable
+
+  Delete any section the module does not need (comparison, stats, tabs).
+  ===========================================================================
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <title>Agent Skills — Reusable Capability Packages</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --primary-hover: #2980b9;
+            --secondary: #2ecc71;
+            --accent: #e74c3c;
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface-hover: #334155;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --correct: #22c55e;
+            --incorrect: #ef4444;
+            --neutral: #64748b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+        }
+
+        /* Visible focus ring on every interactive element. */
+        :focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+        }
+
+        /* ── Hero ─────────────────────────────────── */
+        .hero {
+            background: linear-gradient(135deg, var(--surface) 0%, var(--bg) 100%);
+            padding: 4rem 2rem 3rem;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+        .hero h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .hero .subtitle { color: var(--text-muted); font-size: 1.1rem; }
+        .hero .badge {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-top: 1rem;
+        }
+
+        /* ── Layout ───────────────────────────────── */
+        .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+        /* ── Section Headers ──────────────────────── */
+        .section-header {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 3rem 0 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        /* ── Concept Cards ────────────────────────── */
+        .concept-card {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 1.75rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+            transition: border-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .concept-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(52, 152, 219, 0.15);
+        }
+        /* Accordion pattern: the heading wraps the button, so the card is
+           reachable by Tab and toggles on Enter/Space while still appearing
+           in the document outline. A <div onclick> is invisible to keyboard
+           users; a <button> wrapping the <h3> is invalid HTML. */
+        .concept-card .card-heading { margin: 0; font-size: inherit; font-weight: inherit; }
+        .concept-card .card-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            width: 100%;
+            background: none;
+            border: none;
+            color: inherit;
+            font: inherit;
+            text-align: left;
+            cursor: pointer;
+            user-select: none;
+        }
+        .concept-card .card-title-text { flex: 1; font-size: 1.2rem; font-weight: 600; }
+        .concept-card .toggle-icon {
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+            color: var(--primary);
+        }
+        .concept-card.open .toggle-icon { transform: rotate(90deg); }
+
+        /* grid-template-rows animates to the content's natural height, so a
+           card taller than an arbitrary max-height is never clipped. */
+        .concept-card .card-body {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.4s ease;
+        }
+        .concept-card.open .card-body { grid-template-rows: 1fr; }
+        .concept-card .card-body-inner { overflow: hidden; }
+        .concept-card.open .card-body-inner { padding-top: 1.25rem; }
+        .concept-card .definition {
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+
+        /* ── Diagram Boxes ────────────────────────── */
+        .diagram-container {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            display: flex;
+            justify-content: center;
+        }
+        .diagram-container svg { max-width: 100%; height: auto; }
+
+        /* ── Animated Flow ────────────────────────── */
+        .flow {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 1rem 0;
+        }
+        .flow-step {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0.75rem 1.25rem;
+            text-align: center;
+            min-width: 120px;
+            opacity: 0;
+            transform: translateY(10px);
+            animation: fadeInUp 0.4s forwards;
+        }
+        /* :nth-of-type counts <div>s only. :nth-child would count the arrow
+           <span>s too and apply the delays to the wrong elements. */
+        .flow-step:nth-of-type(2) { animation-delay: 0.1s; }
+        .flow-step:nth-of-type(3) { animation-delay: 0.2s; }
+        .flow-step:nth-of-type(4) { animation-delay: 0.3s; }
+        .flow-step:nth-of-type(5) { animation-delay: 0.4s; }
+        .flow-step .step-label { font-size: 0.8rem; color: var(--text-muted); }
+        .flow-step .step-name { font-weight: 600; }
+        .flow-arrow { color: var(--primary); font-size: 1.5rem; animation: pulse 1.5s infinite; }
+
+        @keyframes fadeInUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ── Comparison Table ─────────────────────── */
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .comparison .col {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.25rem;
+            border: 1px solid var(--border);
+        }
+        .comparison .col h4 { margin-bottom: 0.75rem; }
+        .comparison .col.pro { border-top: 3px solid var(--correct); }
+        .comparison .col.con { border-top: 3px solid var(--incorrect); }
+        .comparison ul { list-style: none; padding: 0; }
+        .comparison li { padding: 0.35rem 0; padding-left: 1.25rem; position: relative; }
+        .comparison li::before { content: '•'; position: absolute; left: 0; color: var(--primary); }
+
+        /* ── Interactive Code Block ────────────────── */
+        .code-block {
+            background: var(--surface);
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 1rem 0;
+            border: 1px solid var(--border);
+        }
+        .code-block .code-header {
+            background: var(--bg);
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+        .code-block pre {
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        /* ── Stats Row ────────────────────────────── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .stat-card {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        .stat-card .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .stat-card .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+        .stat-card .stat-source {
+            font-size: 0.7rem;
+            color: var(--neutral);
+            margin-top: 0.5rem;
+        }
+
+        /* ── Tabs ─────────────────────────────────── */
+        .tabs { display: flex; gap: 0.5rem; margin: 1rem 0; flex-wrap: wrap; }
+        .tab-btn {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font: inherit;
+            font-size: 0.95rem;
+            transition: background 0.2s, color 0.2s, border-color 0.2s;
+        }
+        .tab-btn[aria-selected="true"] {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .tab-content[hidden] { display: none; }
+
+        /* ── Quiz Section ─────────────────────────── */
+        .quiz-section {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 2px solid var(--accent);
+        }
+        .quiz-header {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+        }
+        .quiz-progress {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .quiz-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--border);
+            transition: background 0.3s;
+        }
+        .quiz-dot.answered { background: var(--primary); }
+        .quiz-dot.correct { background: var(--correct); }
+        .quiz-dot.incorrect { background: var(--incorrect); }
+        .quiz-stats {
+            display: flex;
+            gap: 1rem;
+            margin-top: 0.75rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+        }
+        .question-card {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--neutral);
+            transition: border-color 0.3s;
+        }
+        .question-card.correct { border-left-color: var(--correct); }
+        .question-card.incorrect { border-left-color: var(--incorrect); }
+        .question-number { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; padding: 0; }
+        .question-text { font-weight: 500; margin-bottom: 1rem; }
+        .options { display: flex; flex-direction: column; gap: 0.5rem; }
+
+        /* Real radio inputs: arrow keys move within a question, Tab moves
+           between questions, and screen readers announce "2 of 4". */
+        .option {
+            display: block;
+            position: relative;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+            color: var(--text);
+            cursor: pointer;
+            text-align: left;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .option input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+        .option:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
+        .option:hover:not(.locked) { border-color: var(--primary); background: rgba(52,152,219,0.1); }
+        .option.locked { cursor: not-allowed; }
+        .option.selected { border-color: var(--primary); background: rgba(52,152,219,0.15); }
+        .option.correct { border-color: var(--correct); background: rgba(34,197,94,0.15); }
+        .option.incorrect { border-color: var(--incorrect); background: rgba(239,68,68,0.15); }
+        /* Result marked with a glyph as well as colour (WCAG 1.4.1). */
+        .option .marker { font-weight: 700; }
+        .option.correct .marker::before { content: '\2713\00a0'; color: var(--correct); }
+        .option.incorrect .marker::before { content: '\2717\00a0'; color: var(--incorrect); }
+
+        .feedback {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        .feedback[hidden] { display: none; }
+        .feedback.correct { background: rgba(34,197,94,0.1); color: var(--correct); }
+        .feedback.incorrect { background: rgba(239,68,68,0.1); color: var(--incorrect); }
+
+        .quiz-notice {
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            background: rgba(231,76,60,0.12);
+            color: #f5a097;
+            font-size: 0.9rem;
+        }
+        .quiz-notice[hidden] { display: none; }
+
+        .quiz-actions { display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap; }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-weight: 500;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--surface-hover); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* ── Responsive ────────────────────────────── */
+        @media (max-width: 640px) {
+            .hero { padding: 2.5rem 1rem 2rem; }
+            .hero h1 { font-size: 1.75rem; }
+            .container { padding: 1rem; }
+            .comparison { grid-template-columns: 1fr; }
+            .flow { justify-content: center; }
+            .quiz-actions .btn { flex: 1 1 100%; }
+        }
+
+        /* ── Reduced motion ────────────────────────── */
+        /* Without the explicit opacity/transform reset, .flow-step keeps the
+           opacity:0 it starts at and the content is invisible. */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+            .flow-step { opacity: 1; transform: none; }
+        }
+    </style>
+</head>
+<body>
+    <!-- ════════════════════════════════════════════ -->
+    <!-- HERO                                        -->
+    <!-- ════════════════════════════════════════════ -->
+    <section class="hero">
+        <h1>Agent Skills — Reusable Capability Packages</h1>
+        <p class="subtitle">Module 02 · Lab 04 — how a folder with a <code>SKILL.md</code>, reference notes, and helper scripts turns team know-how into a versioned, model-invoked capability every agent surface can use.</p>
+        <span class="badge">Interactive Concept Guide</span>
+    </section>
+
+    <div class="container">
+        <!-- ══════════════════════════════════════════ -->
+        <!-- CONCEPT                                    -->
+        <!-- ══════════════════════════════════════════ -->
+        <h2 class="section-header">Concept</h2>
+
+        <div class="concept-card open">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="true" aria-controls="concept-1-body">
+                    <span class="card-title-text">1 · What a Skill Is</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-1-body">
+                <div class="card-body-inner">
+                    <p class="definition">A <strong>skill</strong> is a self-contained capability package the <strong>model pulls in on its own</strong> when a task matches its description. It can bundle <strong>scripts and data</strong>, not just text — so it captures a whole procedure, not a rule or a snippet.</p>
+
+                    <div class="comparison">
+                        <div class="col pro">
+                            <h4>A skill is…</h4>
+                            <ul>
+                                <li><strong>Model-invoked</strong> — the agent decides to use it</li>
+                                <li><strong>Self-contained</strong> — procedure + references + scripts in one folder</li>
+                                <li><strong>On-demand</strong> — loaded only when a task matches</li>
+                                <li><strong>Versioned</strong> — reviewed in a PR, travels with the repo</li>
+                            </ul>
+                        </div>
+                        <div class="col con">
+                            <h4>…the missing piece</h4>
+                            <ul>
+                                <li>Instructions (Lab 01) are <strong>always on</strong></li>
+                                <li>Prompt files (Lab 02) are <strong>a person's choice</strong></li>
+                                <li>Chat modes (Lab 03) are <strong>a person's choice</strong></li>
+                                <li>Only a skill is picked by the model <em>and</em> carries runnable files</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <p class="definition">It turns <em>"ask Priya, she knows how we do cross-backend ports"</em> into an artifact every agent surface — CLI, agent mode, the coding agent — can use.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="concept-card">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-2-body">
+                    <span class="card-title-text">2 · Progressive Disclosure — Three Load Levels</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-2-body">
+                <div class="card-body-inner">
+                    <p class="definition">Only the one-line description is always in context. The body and files load on demand — so a repo can ship <strong>many</strong> skills without bloating every prompt.</p>
+
+                    <div class="diagram-container">
+                        <svg viewBox="0 0 460 220" width="460" height="220"
+                             role="img" aria-label="Three concentric layers. Outermost, always loaded: the description, one line of frontmatter. Middle, loaded when the skill is triggered: the SKILL.md body, the procedure. Innermost, loaded when the body references them: the bundled files — reference notes, data, and scripts.">
+                            <rect x="10" y="10" width="440" height="200" rx="10" fill="#0f172a" stroke="#334155"/>
+                            <text x="230" y="30" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="11" font-weight="700">ALWAYS LOADED · description (1 line)</text>
+                            <rect x="48" y="44" width="364" height="140" rx="10" fill="#1e293b" stroke="#334155"/>
+                            <text x="230" y="64" text-anchor="middle" fill="#cbd5e1" font-family="sans-serif" font-size="11" font-weight="700">ON TRIGGER · SKILL.md body (the procedure)</text>
+                            <rect x="92" y="80" width="276" height="88" rx="10" fill="#1e3a8a" stroke="#3b82f6"/>
+                            <text x="230" y="118" text-anchor="middle" fill="#e2e8f0" font-family="sans-serif" font-size="11" font-weight="700">WHEN REFERENCED</text>
+                            <text x="230" y="138" text-anchor="middle" fill="#cbd5e1" font-family="sans-serif" font-size="10">bundled files — notes, data, scripts</text>
+                        </svg>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-header">What loads, and when</div>
+                        <pre><code>description (frontmatter)   ALWAYS      lets the agent judge relevance
+SKILL.md body              ON TRIGGER  the actual procedure
+bundled files              ON DEMAND   detail, data, runnable scripts</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="concept-card">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-3-body">
+                    <span class="card-title-text">3 · The <code>description</code> Is the Trigger</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-3-body">
+                <div class="card-body-inner">
+                    <p class="definition">That one line is the <strong>only thing the agent sees</strong> when deciding whether to use the skill. It has to match how people actually phrase the task — concrete <strong>verbs + nouns</strong>, and the trigger conditions.</p>
+
+                    <div class="comparison">
+                        <div class="col pro">
+                            <h4>✅ Sharp — gets used</h4>
+                            <ul>
+                                <li>"Port a Task Board endpoint from one backend to another so both return byte-identical JSON. Use when a change exists in one backend and must be mirrored in another, or when checking cross-backend parity."</li>
+                            </ul>
+                        </div>
+                        <div class="col con">
+                            <h4>❌ Vague — ignored</h4>
+                            <ul>
+                                <li>"Helps with backend work."</li>
+                                <li>"Useful for endpoints."</li>
+                                <li>"Port stuff between services."</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <p class="definition">If the agent never uses the skill, the description is almost always why — make it echo the verbs and nouns you use in the request (<em>port</em>, <em>backend</em>, <em>parity</em>).</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- STRUCTURE                                  -->
+        <!-- ══════════════════════════════════════════ -->
+        <h2 class="section-header">Structure</h2>
+
+        <div class="concept-card">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-4-body">
+                    <span class="card-title-text">4 · Anatomy of a Skill Folder</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-4-body">
+                <div class="card-body-inner">
+                    <p class="definition">One folder per skill, discovered by Copilot under <code>.github/skills/</code>. The Lab 04 example — <code>port-endpoint</code>:</p>
+
+                    <div class="code-block">
+                        <div class="code-header">.github/skills/port-endpoint/</div>
+                        <pre><code>port-endpoint/
+├── SKILL.md            # YAML frontmatter (name, description) + the procedure
+├── contract-notes.md   # reference the body tells the agent to read
+└── scripts/
+    ├── compare-responses.sh    # bundled helper (macOS / Linux)
+    └── compare-responses.ps1   # bundled helper (Windows)</code></pre>
+                    </div>
+
+                    <div class="flow">
+                        <div class="flow-step">
+                            <div class="step-label">Loaded: always</div>
+                            <div class="step-name"><code>description</code> (frontmatter) — lets the agent decide if the skill is relevant</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">Loaded: when triggered</div>
+                            <div class="step-name"><code>SKILL.md</code> body — the actual procedure</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">Loaded: when referenced</div>
+                            <div class="step-name">Bundled files — detail, data, runnable scripts</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="concept-card">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-5-body">
+                    <span class="card-title-text">5 · Inside <code>SKILL.md</code></span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-5-body">
+                <div class="card-body-inner">
+                    <p class="definition">Frontmatter carries the <code>name</code> and the trigger-worthy <code>description</code>. The body is <strong>just the procedure</strong> — push detail into bundled files it references, or an over-long body gets ignored.</p>
+
+                    <div class="code-block">
+                        <div class="code-header">.github/skills/port-endpoint/SKILL.md</div>
+                        <pre><code>---
+name: port-endpoint
+description: >-
+  Port a Task Board endpoint or feature from one backend (.NET, Python,
+  or Java) to another so both return byte-identical JSON for the same
+  request. Use when a change exists in one backend and must be mirrored
+  in another, or when checking cross-backend parity.
+---
+
+# Port a Task Board endpoint between backends
+
+## When to use
+- A feature exists in one backend and must be added to another.
+- You need to verify two backends agree on the same request/response.
+
+## Procedure
+1. Read the source — repository, service, controller/router layers.
+2. Read the target's idioms — match framework style and error mapping.
+3. Reproduce layer by layer, obeying .github/copilot-instructions.md.
+4. Match the JSON contract exactly (see contract-notes.md).
+5. Mirror the tests in the target's framework.
+6. Verify with scripts/compare-responses.sh &lt;path&gt;.
+7. Reconcile any diff until output is identical.
+
+## Definition of done
+- Feature implemented across all three layers; target tests pass.
+- compare-responses shows identical output for every affected route.</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- USAGE                                      -->
+        <!-- ══════════════════════════════════════════ -->
+        <h2 class="section-header">Usage</h2>
+
+        <div class="concept-card">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-6-body">
+                    <span class="card-title-text">6 · How the Agent Uses a Skill</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-6-body">
+                <div class="card-body-inner">
+                    <p class="definition">The lifecycle from a plain request to a finished, verified task.</p>
+
+                    <div class="flow">
+                        <div class="flow-step">
+                            <div class="step-label">1 · Task arrives</div>
+                            <div class="step-name">"Port the <code>-updated_at</code> sorting feature from Python to .NET"</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">2 · Agent scans descriptions</div>
+                            <div class="step-name">Every skill's one-liner is in context</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">3 · Match → load body</div>
+                            <div class="step-name">Pulls in <code>SKILL.md</code> and follows the procedure</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">4 · Load files as referenced</div>
+                            <div class="step-name">Reads <code>contract-notes.md</code>, runs <code>compare-responses</code></div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">5 · Done</div>
+                            <div class="step-name">Feature ported, tests mirrored, output verified identical</div>
+                        </div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-header">Auto-discovery — the agent picks the skill itself</div>
+                        <pre><code>&gt; Port the updated_at sorting feature (GET /api/tasks?sort=-updated_at)
+  from the Python backend to the .NET backend.
+
+# Agent: "Using skill port-endpoint…"</code></pre>
+                    </div>
+                    <div class="code-block">
+                        <div class="code-header">Explicit — point at the file when auto-discovery isn't available</div>
+                        <pre><code>&gt; Follow .github/skills/port-endpoint/SKILL.md to port the updated_at
+  sorting feature from the Python backend to the .NET backend.</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="concept-card">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-7-body">
+                    <span class="card-title-text">7 · Portability Across Agent Tools</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-7-body">
+                <div class="card-body-inner">
+                    <p class="definition">The <code>SKILL.md</code> <strong>format and idea are shared</strong> across agent tools — only the discovery path differs.</p>
+
+                    <div class="flow">
+                        <div class="flow-step">
+                            <div class="step-label">GitHub Copilot</div>
+                            <div class="step-name">Discovers repo skills under <code>.github/skills/</code></div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">Claude Code / others</div>
+                            <div class="step-name">Look in <code>.claude/skills/</code> or a configured path</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">Same file</div>
+                            <div class="step-name">One <code>SKILL.md</code> is the single source of truth</div>
+                        </div>
+                    </div>
+
+                    <p class="definition">If your Copilot build doesn't auto-discover yet, you invoke the skill by path — the file is still the one place the procedure lives.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- VISUAL COMPARISON                         -->
+        <!-- ══════════════════════════════════════════ -->
+        <h2 class="section-header">Is a Skill the Right Fit?</h2>
+        <p class="definition">Skills are one rung of the customization ladder — powerful for triggered procedures, wrong for always-on rules.</p>
+
+        <div class="comparison">
+            <div class="col pro">
+                <h4>✅ Use a skill when…</h4>
+                <ul>
+                    <li>A multi-step <strong>procedure</strong> recurs across tasks</li>
+                    <li>It needs bundled <strong>scripts or reference data</strong>, not just text</li>
+                    <li>It should trigger <strong>automatically</strong> on matching work</li>
+                    <li>The same know-how is needed across CLI, agent mode, and the coding agent</li>
+                </ul>
+            </div>
+            <div class="col con">
+                <h4>❌ Reach for something else when…</h4>
+                <ul>
+                    <li>A rule should <strong>always</strong> apply → repository / path instructions</li>
+                    <li>A person will deliberately pick it each time → prompt file</li>
+                    <li>You need to fix tools + model for a category of work → custom chat mode</li>
+                    <li>It's a genuine one-off → just write the prompt</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- INTERACTIVE TABS                          -->
+        <!-- ══════════════════════════════════════════ -->
+        <h2 class="section-header">Skills in the Customization Ladder</h2>
+        <p class="definition">The four Module 02 mechanisms, side by side. Pick one.</p>
+
+        <div class="tabs" role="tablist" aria-label="Customization mechanisms">
+            <button class="tab-btn" type="button" role="tab" id="tab-btn-1"
+                    aria-selected="true" aria-controls="tab-1">Instructions</button>
+            <button class="tab-btn" type="button" role="tab" id="tab-btn-2"
+                    aria-selected="false" aria-controls="tab-2">Prompt files</button>
+            <button class="tab-btn" type="button" role="tab" id="tab-btn-3"
+                    aria-selected="false" aria-controls="tab-3">Chat modes</button>
+            <button class="tab-btn" type="button" role="tab" id="tab-btn-4"
+                    aria-selected="false" aria-controls="tab-4">Skills</button>
+        </div>
+
+        <div id="tab-1" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-1" tabindex="0">
+            <p><strong>File:</strong> <code>.github/copilot-instructions.md</code>, <code>AGENTS.md</code>, <code>.github/instructions/*.instructions.md</code></p>
+            <p><strong>Loaded:</strong> automatically — every request (repo-wide) or every request touching files that match an <code>applyTo</code> glob.</p>
+            <p><strong>Best for:</strong> "what good looks like here" — architecture rules, the error contract, the schema owner. Always on, no one chooses it.</p>
+        </div>
+        <div id="tab-2" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-2" tabindex="0" hidden>
+            <p><strong>File:</strong> <code>.github/prompts/NAME.prompt.md</code></p>
+            <p><strong>Invoked:</strong> by a person typing <code>/NAME</code> in Copilot Chat.</p>
+            <p><strong>Best for:</strong> a repetitive request standardised as a reviewed slash-command — <code>/new-endpoint</code>, <code>/write-tests</code>, <code>/review-diff</code>.</p>
+        </div>
+        <div id="tab-3" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-3" tabindex="0" hidden>
+            <p><strong>File:</strong> <code>.github/chatmodes/NAME.chatmode.md</code> (and <code>.github/agents/NAME.md</code> for the coding agent)</p>
+            <p><strong>Invoked:</strong> by a person choosing the mode from the chat dropdown.</p>
+            <p><strong>Best for:</strong> a scoped persona that fixes instructions + allowed tools + model — a read-only <em>API Reviewer</em>, a test-files-only <em>Test Author</em>.</p>
+        </div>
+        <div id="tab-4" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-4" tabindex="0" hidden>
+            <p><strong>File:</strong> <code>.github/skills/NAME/SKILL.md</code> + bundled reference notes and scripts</p>
+            <p><strong>Invoked:</strong> by the <em>model</em> — it matches the task to the skill's <code>description</code> (or you point at the path).</p>
+            <p><strong>Best for:</strong> a multi-step procedure that carries runnable scripts and data, reused across every agent surface — "how we port a feature so the JSON stays byte-identical."</p>
+        </div>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- SELF-CHECK QUIZ — 5 QUESTIONS             -->
+        <!-- ══════════════════════════════════════════ -->
+        <div class="quiz-section">
+            <h2 class="section-header">Self-Check Quiz</h2>
+
+            <div class="quiz-header">
+                <p>Test your understanding — 5 questions, 70% to pass.</p>
+                <div class="quiz-progress" id="quiz-progress" aria-hidden="true">
+                    <div class="quiz-dot" data-q="1"></div>
+                    <div class="quiz-dot" data-q="2"></div>
+                    <div class="quiz-dot" data-q="3"></div>
+                    <div class="quiz-dot" data-q="4"></div>
+                    <div class="quiz-dot" data-q="5"></div>
+                </div>
+                <div class="quiz-stats" id="quiz-stats" role="status" aria-live="polite"></div>
+            </div>
+
+            <form id="quiz-form">
+                <div id="quiz-container"></div>
+                <p class="quiz-notice" id="quiz-notice" role="alert" hidden></p>
+                <div class="quiz-actions">
+                    <button class="btn btn-primary" type="submit" id="submit-btn">Submit Answers</button>
+                    <button class="btn btn-secondary" type="button" id="reset-btn">Reset</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════ -->
+    <!-- JAVASCRIPT (all inline, zero dependencies)  -->
+    <!-- ════════════════════════════════════════════ -->
+    <script>
+    (function () {
+        'use strict';
+
+        // ── Concept card toggle ────────────────────
+        // Delegated, so no inline onclick and no globals.
+        document.addEventListener('click', function (e) {
+            const header = e.target.closest('.card-header');
+            if (!header) return;
+            const card = header.closest('.concept-card');
+            const open = card.classList.toggle('open');
+            header.setAttribute('aria-expanded', String(open));
+        });
+
+        // ── Tabs ───────────────────────────────────
+        document.addEventListener('click', function (e) {
+            // closest() rather than e.target: a click landing on markup
+            // inside the button would otherwise be missed.
+            const btn = e.target.closest('.tab-btn');
+            if (!btn) return;
+            const list = btn.closest('[role="tablist"]');
+
+            list.querySelectorAll('.tab-btn').forEach(function (b) {
+                b.setAttribute('aria-selected', 'false');
+                const panel = document.getElementById(b.getAttribute('aria-controls'));
+                if (panel) panel.hidden = true;
+            });
+
+            btn.setAttribute('aria-selected', 'true');
+            const active = document.getElementById(btn.getAttribute('aria-controls'));
+            if (active) active.hidden = false;
+        });
+
+        // Arrow-key navigation between tabs, per the WAI-ARIA tabs pattern.
+        document.addEventListener('keydown', function (e) {
+            const btn = e.target.closest('.tab-btn');
+            if (!btn || (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft')) return;
+            const tabs = Array.from(btn.closest('[role="tablist"]').querySelectorAll('.tab-btn'));
+            const next = tabs[(tabs.indexOf(btn) + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
+            next.focus();
+            next.click();
+        });
+
+        // ── Quiz data ──────────────────────────────
+        // `correct` is a 0-based index into `options`.
+        const quizData = [
+            {
+                id: 1,
+                text: "What most clearly distinguishes a skill from a repository custom-instructions file?",
+                options: [
+                    "A skill is written in Markdown; instructions are written in YAML",
+                    "A skill is model-invoked and loads only when a task matches its description, and it can bundle scripts and data; instructions are always-on text",
+                    "A skill applies to the whole repo; instructions apply to one folder",
+                    "A skill can only be used in the Copilot CLI"
+                ],
+                correct: 1,
+                explanation: "Instructions (Lab 01) are always in context for every request. A skill is chosen by the model when the task matches, carries a whole procedure plus runnable files, and stays out of context until then. Both are Markdown; both can be repo-wide; skills work across every agent surface, not just the CLI."
+            },
+            {
+                id: 2,
+                text: "For a skill that has NOT been triggered, what part of it is in the agent's context?",
+                options: [
+                    "The whole SKILL.md file",
+                    "SKILL.md plus every bundled reference file",
+                    "Only the one-line description from the frontmatter",
+                    "Nothing — skills are invisible until invoked by path"
+                ],
+                correct: 2,
+                explanation: "That is what progressive disclosure buys you: only the description is always loaded, so a repo can ship many skills cheaply. The body loads on trigger, and bundled files load when the body references them. The description is always visible — that is how the agent decides whether to trigger it."
+            },
+            {
+                id: 3,
+                text: "The agent keeps not using your skill for the exact task it was built for. What is the first thing to fix?",
+                options: [
+                    "Move the skill into .vscode/ instead of .github/skills/",
+                    "Make the SKILL.md body much longer and more detailed",
+                    "Sharpen the description so it echoes the verbs and nouns you actually use in the request",
+                    "Add more bundled scripts"
+                ],
+                correct: 2,
+                explanation: "The description is the only thing the agent sees when deciding relevance, so a vague one (\"helps with backend work\") loses. Match the phrasing of real requests — \"port\", \"backend\", \"parity\" — and name the trigger conditions. A longer body actually hurts; you can also just invoke the skill by path."
+            },
+            {
+                id: 4,
+                text: "In the port-endpoint skill, where does the compare-responses helper script live and when does it run?",
+                options: [
+                    "In .github/workflows/; it runs on every push",
+                    "Inside the skill folder (scripts/); the agent runs it when the SKILL.md body's procedure reaches that step",
+                    "In the repo root; a person must run it manually before the agent starts",
+                    "It is generated fresh by the model each time"
+                ],
+                correct: 1,
+                explanation: "A skill is self-contained — the shell and PowerShell helpers ship in the skill's own scripts/ folder and load on demand, when the body references them (step 6 of the procedure: verify with the bundled script). It is a committed artifact, not CI config and not model-generated."
+            },
+            {
+                id: 5,
+                text: "You want every request that touches test files to follow the same test conventions, with no one choosing anything. Skill, or something else?",
+                options: [
+                    "A skill — put the conventions in SKILL.md",
+                    "Something else — a path-scoped instructions file with an applyTo glob, because the rule should always apply, not be triggered",
+                    "A prompt file the tester runs as /test-conventions",
+                    "A custom chat mode called Test Author"
+                ],
+                correct: 1,
+                explanation: "\"Always applies, no one chooses\" is the signature of an instructions file — here a path-scoped one (applyTo: test globs). Skills are for multi-step procedures the model triggers on matching work; prompt files and chat modes both require a person to pick them."
+            }
+        ];
+
+        const PASS_MARK = 70;
+        const answers = {};
+        let submitted = false;
+
+        const form      = document.getElementById('quiz-form');
+        const container = document.getElementById('quiz-container');
+        const stats     = document.getElementById('quiz-stats');
+        const notice    = document.getElementById('quiz-notice');
+        const submitBtn = document.getElementById('submit-btn');
+        const resetBtn  = document.getElementById('reset-btn');
+
+        function esc(value) {
+            return String(value).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+
+        function renderQuiz() {
+            container.innerHTML = quizData.map(function (q, idx) {
+                const opts = q.options.map(function (opt, i) {
+                    return '<label class="option" data-q="' + q.id + '" data-i="' + i + '">' +
+                             '<input type="radio" name="q' + q.id + '" value="' + i + '">' +
+                             '<span class="marker"></span><span>' + esc(opt) + '</span>' +
+                           '</label>';
+                }).join('');
+
+                return '<fieldset class="question-card" data-q="' + q.id + '">' +
+                         '<legend class="question-number">Question ' + (idx + 1) + ' of ' + quizData.length + '</legend>' +
+                         '<p class="question-text">' + esc(q.text) + '</p>' +
+                         '<div class="options">' + opts + '</div>' +
+                         '<p class="feedback" id="fb-' + q.id + '" role="status" aria-live="polite" hidden></p>' +
+                       '</fieldset>';
+            }).join('');
+        }
+
+        container.addEventListener('change', function (e) {
+            if (submitted || e.target.type !== 'radio') return;
+            const label = e.target.closest('.option');
+            const qId = Number(label.dataset.q);
+
+            // Scoped to .option — .question-card and .quiz-dot carry the same
+            // data-q attribute and must not be caught by this query.
+            container.querySelectorAll('.option[data-q="' + qId + '"]')
+                     .forEach(function (el) { el.classList.remove('selected'); });
+
+            label.classList.add('selected');
+            answers[qId] = Number(label.dataset.i);
+            notice.hidden = true;
+            updateProgress();
+        });
+
+        // Before submission this shows the answered count ONLY. A running
+        // score here would let a learner cycle options and read off the
+        // answers without ever submitting.
+        function updateProgress() {
+            const answered = Object.keys(answers).length;
+
+            if (!submitted) {
+                // Only repaint the dots pre-submit. After grading they carry
+                // correct/incorrect, and resetting them here would wipe that.
+                document.querySelectorAll('.quiz-dot').forEach(function (dot) {
+                    dot.className = 'quiz-dot' + (answers[Number(dot.dataset.q)] !== undefined ? ' answered' : '');
+                });
+                stats.innerHTML = '<span>Answered: <strong>' + answered + '</strong>/' + quizData.length + '</span>';
+                return;
+            }
+
+            const correct = calcScore();
+            const pct = Math.round((correct / quizData.length) * 100);
+            stats.innerHTML =
+                '<span>Correct: <strong>' + correct + '</strong>/' + quizData.length + '</span>' +
+                '<span>Score: <strong>' + pct + '%</strong></span>' +
+                '<span>' + (pct >= PASS_MARK ? 'Passed' : 'Below ' + PASS_MARK + '% — review and retry') + '</span>';
+        }
+
+        function calcScore() {
+            return quizData.filter(function (q) { return answers[q.id] === q.correct; }).length;
+        }
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            // Inline message rather than alert(): alert() is suppressed in
+            // some embedded contexts and cannot be styled or announced.
+            const missing = quizData.find(function (q) { return answers[q.id] === undefined; });
+            if (missing) {
+                notice.textContent = 'Answer all ' + quizData.length + ' questions before submitting.';
+                notice.hidden = false;
+                const card = container.querySelector('.question-card[data-q="' + missing.id + '"]');
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const input = card.querySelector('input');
+                if (input) input.focus();
+                return;
+            }
+
+            submitted = true;
+            notice.hidden = true;
+            submitBtn.disabled = true;
+
+            quizData.forEach(function (q) {
+                const card = container.querySelector('.question-card[data-q="' + q.id + '"]');
+                const wasCorrect = answers[q.id] === q.correct;
+
+                card.querySelectorAll('.option').forEach(function (opt) {
+                    const i = Number(opt.dataset.i);
+                    const input = opt.querySelector('input');
+                    if (input) input.disabled = true;
+                    opt.classList.add('locked');
+                    if (i === q.correct) opt.classList.add('correct');
+                    else if (answers[q.id] === i) opt.classList.add('incorrect');
+                });
+
+                const fb = document.getElementById('fb-' + q.id);
+                fb.textContent = (wasCorrect ? '✓ Correct. ' : '✗ Incorrect. ') + q.explanation;
+                fb.className = 'feedback ' + (wasCorrect ? 'correct' : 'incorrect');
+                fb.hidden = false;
+                card.classList.add(wasCorrect ? 'correct' : 'incorrect');
+
+                const dot = document.querySelector('.quiz-dot[data-q="' + q.id + '"]');
+                dot.className = 'quiz-dot ' + (wasCorrect ? 'correct' : 'incorrect');
+            });
+
+            updateProgress();
+        });
+
+        resetBtn.addEventListener('click', function () {
+            Object.keys(answers).forEach(function (k) { delete answers[k]; });
+            submitted = false;
+            submitBtn.disabled = false;
+            notice.hidden = true;
+            renderQuiz();
+            updateProgress();
+        });
+
+        // ── Init ───────────────────────────────────
+        renderQuiz();
+        updateProgress();
+    })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,2164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <title>Module 01: Course Objectives &amp; GenAI/LLM Recap</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --primary-hover: #2980b9;
+            --secondary: #2ecc71;
+            --accent: #e74c3c;
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface-hover: #334155;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --correct: #22c55e;
+            --incorrect: #ef4444;
+            --neutral: #64748b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+        }
+
+        /* Visible focus ring on every interactive element. */
+        :focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+        }
+
+        /* ── Hero ─────────────────────────────────── */
+        .hero {
+            background: linear-gradient(135deg, var(--surface) 0%, var(--bg) 100%);
+            padding: 4rem 2rem 3rem;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+        .hero h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .hero .subtitle { color: var(--text-muted); font-size: 1.1rem; }
+        .hero .badge {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-top: 1rem;
+        }
+
+        /* ── Layout ───────────────────────────────── */
+        .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+        /* ── Section Headers ──────────────────────── */
+        .section-header {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 3rem 0 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        /* ── Concept Cards ────────────────────────── */
+        .concept-card {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 1.75rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+            transition: border-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .concept-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(52, 152, 219, 0.15);
+        }
+        /* Accordion pattern: the heading wraps the button, so the card is
+           reachable by Tab and toggles on Enter/Space while still appearing
+           in the document outline. A <div onclick> is invisible to keyboard
+           users; a <button> wrapping the <h3> is invalid HTML. */
+        .concept-card .card-heading { margin: 0; font-size: inherit; font-weight: inherit; }
+        .concept-card .card-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            width: 100%;
+            background: none;
+            border: none;
+            color: inherit;
+            font: inherit;
+            text-align: left;
+            cursor: pointer;
+            user-select: none;
+        }
+        .concept-card .card-title-text { flex: 1; font-size: 1.2rem; font-weight: 600; }
+        .concept-card .toggle-icon {
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+            color: var(--primary);
+        }
+        .concept-card.open .toggle-icon { transform: rotate(90deg); }
+
+        /* grid-template-rows animates to the content's natural height, so a
+           card taller than an arbitrary max-height is never clipped. */
+        .concept-card .card-body {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.4s ease;
+        }
+        .concept-card.open .card-body { grid-template-rows: 1fr; }
+        .concept-card .card-body-inner { overflow: hidden; }
+        .concept-card.open .card-body-inner { padding-top: 1.25rem; }
+        .concept-card .definition {
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+
+        /* ── Diagram Boxes ────────────────────────── */
+        .diagram-container {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            display: flex;
+            justify-content: center;
+        }
+        .diagram-container svg { max-width: 100%; height: auto; }
+
+        /* ── Animated Flow ────────────────────────── */
+        .flow {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 1rem 0;
+        }
+        .flow-step {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0.75rem 1.25rem;
+            text-align: center;
+            min-width: 120px;
+            opacity: 0;
+            transform: translateY(10px);
+            animation: fadeInUp 0.4s forwards;
+        }
+        /* :nth-of-type counts <div>s only. :nth-child would count the arrow
+           <span>s too and apply the delays to the wrong elements. */
+        .flow-step:nth-of-type(2) { animation-delay: 0.1s; }
+        .flow-step:nth-of-type(3) { animation-delay: 0.2s; }
+        .flow-step:nth-of-type(4) { animation-delay: 0.3s; }
+        .flow-step:nth-of-type(5) { animation-delay: 0.4s; }
+        .flow-step .step-label { font-size: 0.8rem; color: var(--text-muted); }
+        .flow-step .step-name { font-weight: 600; }
+        .flow-arrow { color: var(--primary); font-size: 1.5rem; animation: pulse 1.5s infinite; }
+
+        @keyframes fadeInUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ── Comparison Table ─────────────────────── */
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .comparison .col {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.25rem;
+            border: 1px solid var(--border);
+        }
+        .comparison .col h4 { margin-bottom: 0.75rem; }
+        .comparison .col.pro { border-top: 3px solid var(--correct); }
+        .comparison .col.con { border-top: 3px solid var(--incorrect); }
+        .comparison ul { list-style: none; padding: 0; }
+        .comparison li { padding: 0.35rem 0; padding-left: 1.25rem; position: relative; }
+        .comparison li::before { content: '•'; position: absolute; left: 0; color: var(--primary); }
+
+        /* ── Interactive Code Block ────────────────── */
+        .code-block {
+            background: var(--surface);
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 1rem 0;
+            border: 1px solid var(--border);
+        }
+        .code-block .code-header {
+            background: var(--bg);
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+        .code-block pre {
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        /* ── Stats Row ────────────────────────────── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .stat-card {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        .stat-card .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .stat-card .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+        .stat-card .stat-source {
+            font-size: 0.7rem;
+            color: var(--neutral);
+            margin-top: 0.5rem;
+        }
+
+        /* ── Tabs ─────────────────────────────────── */
+        .tabs { display: flex; gap: 0.5rem; margin: 1rem 0; flex-wrap: wrap; }
+        .tab-btn {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font: inherit;
+            font-size: 0.95rem;
+            transition: background 0.2s, color 0.2s, border-color 0.2s;
+        }
+        .tab-btn[aria-selected="true"] {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .tab-content[hidden] { display: none; }
+
+        /* ── Quiz Section ─────────────────────────── */
+        .quiz-section {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 2px solid var(--accent);
+        }
+        .quiz-header {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+        }
+        .quiz-progress {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .quiz-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--border);
+            transition: background 0.3s;
+        }
+        .quiz-dot.answered { background: var(--primary); }
+        .quiz-dot.correct { background: var(--correct); }
+        .quiz-dot.incorrect { background: var(--incorrect); }
+        .quiz-stats {
+            display: flex;
+            gap: 1rem;
+            margin-top: 0.75rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+        }
+        .question-card {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--neutral);
+            transition: border-color 0.3s;
+        }
+        .question-card.correct { border-left-color: var(--correct); }
+        .question-card.incorrect { border-left-color: var(--incorrect); }
+        .question-number { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; padding: 0; }
+        .question-text { font-weight: 500; margin-bottom: 1rem; }
+        .options { display: flex; flex-direction: column; gap: 0.5rem; }
+
+        /* Real radio inputs: arrow keys move within a question, Tab moves
+           between questions, and screen readers announce "2 of 4". */
+        .option {
+            display: block;
+            position: relative;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+            color: var(--text);
+            cursor: pointer;
+            text-align: left;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .option input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+        .option:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
+        .option:hover:not(.locked) { border-color: var(--primary); background: rgba(52,152,219,0.1); }
+        .option.locked { cursor: not-allowed; }
+        .option.selected { border-color: var(--primary); background: rgba(52,152,219,0.15); }
+        .option.correct { border-color: var(--correct); background: rgba(34,197,94,0.15); }
+        .option.incorrect { border-color: var(--incorrect); background: rgba(239,68,68,0.15); }
+        /* Result marked with a glyph as well as colour (WCAG 1.4.1). */
+        .option .marker { font-weight: 700; }
+        .option.correct .marker::before { content: '\2713\00a0'; color: var(--correct); }
+        .option.incorrect .marker::before { content: '\2717\00a0'; color: var(--incorrect); }
+
+        .feedback {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        .feedback[hidden] { display: none; }
+        .feedback.correct { background: rgba(34,197,94,0.1); color: var(--correct); }
+        .feedback.incorrect { background: rgba(239,68,68,0.1); color: var(--incorrect); }
+
+        .quiz-notice {
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            background: rgba(231,76,60,0.12);
+            color: #f5a097;
+            font-size: 0.9rem;
+        }
+        .quiz-notice[hidden] { display: none; }
+
+        .quiz-actions { display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap; }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-weight: 500;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--surface-hover); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* ── Responsive ────────────────────────────── */
+        @media (max-width: 640px) {
+            .hero { padding: 2.5rem 1rem 2rem; }
+            .hero h1 { font-size: 1.75rem; }
+            .container { padding: 1rem; }
+            .comparison { grid-template-columns: 1fr; }
+            .flow { justify-content: center; }
+            .quiz-actions .btn { flex: 1 1 100%; }
+        }
+
+        /* ── Reduced motion ────────────────────────── */
+        /* Without the explicit opacity/transform reset, .flow-step keeps the
+           opacity:0 it starts at and the content is invisible. */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+            .flow-step { opacity: 1; transform: none; }
+        }
+    </style>
+    <style>
+        /* ═══════════════════════════════════════════════════════════
+           Module 01 additions. The template <style> above is untouched;
+           everything specific to this page's visuals lives here.
+           ═══════════════════════════════════════════════════════════ */
+        :root {
+            --orange: #f97316;
+            --orange-text: #fb923c;
+            --orange-soft: rgba(249, 115, 22, 0.14);
+            --blue-soft: rgba(52, 152, 219, 0.14);
+            --blue-text: #7cc0ee;
+            --mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+        /* Collapsed cards: take their controls out of the Tab order and the
+           accessibility tree once the collapse animation has finished. */
+        .concept-card .card-body-inner { visibility: visible; transition: visibility 0s; }
+        .concept-card:not(.open) .card-body-inner { visibility: hidden; transition: visibility 0s linear 0.4s; }
+        .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+        svg text { font-family: inherit; }
+        .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+        /* ── Hero extras ──────────────────────────── */
+        .hero-meta { display: flex; justify-content: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 1.25rem; }
+        .hero-meta span {
+            border: 1px solid var(--border); border-radius: 999px; padding: 0.2rem 0.8rem;
+            font-size: 0.85rem; color: var(--text-muted); background: rgba(15, 23, 42, 0.5);
+        }
+        .hero .badge { background: var(--orange); }
+
+        /* ── Generic helpers ──────────────────────── */
+        .lead { color: var(--text-muted); max-width: 75ch; margin: -0.5rem 0 1.25rem; }
+        .part-note { color: var(--text-muted); margin: -0.75rem 0 1.25rem; font-size: 0.95rem; }
+        .viz-title {
+            font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase;
+            color: var(--blue-text); margin: 1.5rem 0 0.6rem; font-weight: 700;
+        }
+        .note { font-size: 0.8rem; color: var(--text-muted); font-style: italic; margin-top: 0.5rem; }
+        .flush { margin-top: 0 !important; margin-bottom: 0; }
+        .fieldset-widget { border: 1px solid var(--border); }
+        .fieldset-widget legend { padding: 0 0.4rem; }
+        .gap-top { margin-top: 0.75rem; }
+        .sw-in { background: #3b82f6; }
+        .sw-out { background: #22a06b; }
+        .sw-sys { background: #1e3a8a; } .sw-files { background: #2f5aa8; } .sw-hist { background: #4a6db0; }
+        .sw-task { background: #c2540a; } .sw-ans { background: #1a7a55; }
+        .callout {
+            background: var(--blue-soft); border-left: 4px solid var(--primary);
+            padding: 0.9rem 1.1rem; border-radius: 8px; margin: 1.25rem 0 0.25rem; font-size: 0.95rem;
+        }
+        .callout.warm { background: var(--orange-soft); border-left-color: var(--orange); }
+        .callout strong { color: #fff; }
+        .rung-tag {
+            display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+            padding: 0.1rem 0.55rem; border-radius: 999px; margin-right: 0.6rem; vertical-align: middle;
+            background: var(--blue-soft); color: var(--blue-text);
+        }
+        .rung-tag.top { background: var(--orange-soft); color: var(--orange-text); }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: start; }
+        .ticks, .crosses { list-style: none; padding: 0; }
+        .ticks li, .crosses li { padding: 0.25rem 0 0.25rem 1.5rem; position: relative; font-size: 0.92rem; }
+        .ticks li::before { content: '\2713'; position: absolute; left: 0; color: var(--correct); font-weight: 700; }
+        .crosses li::before { content: '\2717'; position: absolute; left: 0; color: var(--incorrect); font-weight: 700; }
+        .pill-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.75rem 0; }
+        .pill {
+            font-size: 0.8rem; padding: 0.2rem 0.75rem; border-radius: 999px; font-weight: 600;
+            background: var(--orange-soft); color: var(--orange-text);
+        }
+        .pill.blue { background: var(--blue-soft); color: var(--blue-text); }
+        .flow-step .step-desc { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.25rem; }
+        .flow-step.wide { flex: 1 1 150px; }
+        .flow-step.accent { border-color: var(--orange); background: var(--orange-soft); }
+        .controls { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin: 0.75rem 0; }
+        .btn-sm {
+            padding: 0.4rem 0.9rem; font-size: 0.85rem; border-radius: 8px; cursor: pointer; font-family: inherit;
+            background: var(--surface); color: var(--text); border: 1px solid var(--border); font-weight: 500;
+        }
+        .btn-sm:hover { background: var(--surface-hover); }
+        .btn-sm.hot { background: var(--orange); border-color: var(--orange); color: #1a0f05; font-weight: 700; }
+        .btn-sm.hot:hover { background: #fb8a3c; }
+        .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
+        input[type="range"] { accent-color: var(--orange); width: 100%; }
+
+        /* ── Concept ladder (overview) ────────────── */
+        .ladder-axis {
+            display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700;
+            letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.5rem;
+        }
+        .ladder-axis .adv { color: var(--orange-text); }
+        .ladder { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; align-items: end; list-style: none; }
+        .ladder li { display: contents; }
+        .rung {
+            appearance: none; width: 100%; text-align: left; font: inherit; color: var(--text); cursor: pointer;
+            background: var(--surface); border: 1px solid var(--border); border-top: 4px solid var(--primary);
+            border-radius: 12px 12px 0 0; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.25rem;
+            transition: background 0.2s, border-color 0.2s, transform 0.2s;
+        }
+        .ladder li:nth-child(1) .rung { min-height: 120px; border-top-color: #6d93c9; }
+        .ladder li:nth-child(2) .rung { min-height: 148px; border-top-color: #5a86c5; }
+        .ladder li:nth-child(3) .rung { min-height: 176px; border-top-color: #4a78bd; }
+        .ladder li:nth-child(4) .rung { min-height: 204px; border-top-color: #3d6bb2; }
+        .ladder li:nth-child(5) .rung { min-height: 232px; border-top-color: #3260a6; }
+        .ladder li:nth-child(6) .rung { min-height: 260px; border-top-color: #28559a; }
+        .ladder li:nth-child(7) .rung { min-height: 288px; border-top-color: var(--orange); background: linear-gradient(180deg, var(--orange-soft), var(--surface)); }
+        .rung:hover { border-color: var(--orange); transform: translateY(-4px); }
+        .rung .n { font-size: 0.75rem; font-weight: 700; color: var(--orange-text); }
+        .rung .t { font-weight: 700; line-height: 1.25; }
+        .rung .d { font-size: 0.78rem; color: var(--text-muted); line-height: 1.35; }
+        .rung .go { margin-top: auto; font-size: 0.72rem; color: var(--blue-text); }
+
+        /* ── Journey ──────────────────────────────── */
+        .journey { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+        .jgroup { flex: 1 1 auto; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 0.75rem; }
+        .jgroup h4 { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.6rem; }
+        .jnodes { display: flex; gap: 0.5rem; flex-wrap: wrap; list-style: none; }
+        .jnode { width: 84px; text-align: center; font-size: 0.7rem; color: var(--text-muted); line-height: 1.25; transition: opacity 0.25s; }
+        .jnode .num {
+            display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; margin: 0 auto 0.3rem;
+            background: #1e40af; color: #fff; font-weight: 700; font-size: 0.95rem; border: 2px solid transparent;
+            transition: background 0.25s, box-shadow 0.25s;
+        }
+        .jnode.here .num { background: var(--orange); color: #1a0f05; }
+        .jnode.here { color: var(--orange-text); font-weight: 600; }
+        .jnode.lit .num { background: var(--orange); color: #1a0f05; box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--orange); }
+        .jnode.lit { color: var(--text); font-weight: 700; }
+        .jnode.dim { opacity: 0.35; }
+        .problems { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.6rem; }
+        .pchip {
+            appearance: none; text-align: left; font: inherit; color: var(--text); cursor: pointer;
+            background: var(--bg); border: 2px solid var(--border); border-radius: 12px; padding: 0.8rem 1rem;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .pchip:hover { border-color: var(--orange); }
+        .pchip[aria-pressed="true"] { border-color: var(--orange); background: var(--orange-soft); }
+        .pchip .pt { font-weight: 700; display: block; }
+        .pchip .pd { font-size: 0.82rem; color: var(--text-muted); display: block; margin: 0.2rem 0 0.4rem; line-height: 1.4; }
+        .pchip .pm { font-size: 0.75rem; font-weight: 700; color: var(--orange-text); }
+        .pchip[aria-pressed="true"] .pm::before { content: '\25CF\00a0'; }
+        .readout { font-size: 0.9rem; color: var(--text-muted); margin-top: 0.75rem; min-height: 1.5em; }
+        .readout strong { color: var(--text); }
+        .lane { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: stretch; margin: 0.4rem 0; }
+        .lane-label {
+            flex: 0 0 104px; font-size: 0.75rem; font-weight: 700; border-radius: 999px; display: grid;
+            place-items: center; padding: 0.4rem; text-align: center; letter-spacing: 0.04em; text-transform: uppercase;
+        }
+        .lane.gf .lane-label { background: #1e40af; color: #fff; }
+        .lane.bf .lane-label { background: var(--orange); color: #1a0f05; }
+        .lane-step {
+            flex: 1 1 100px; font-size: 0.8rem; padding: 0.5rem 0.6rem; border-radius: 8px; text-align: center;
+            border: 1px solid var(--border); background: var(--surface); font-weight: 500;
+        }
+        .lane.bf .lane-step { border-color: rgba(249, 115, 22, 0.45); }
+        .lane.gf .lane-step { border-color: rgba(96, 165, 250, 0.45); }
+
+        /* ── Champion roles ───────────────────────── */
+        .roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0.75rem; }
+        .role {
+            background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; text-align: center;
+            position: relative;
+        }
+        .role .rn { position: absolute; top: 0.6rem; right: 0.8rem; font-weight: 700; color: var(--text-muted); font-size: 0.85rem; }
+        .role svg { width: 120px; height: 64px; color: #60a5fa; }
+        .role.last svg { color: var(--orange-text); }
+        .role h4 { margin: 0.4rem 0; }
+        .role p { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; }
+        .role .tag {
+            display: inline-block; margin-top: 0.6rem; font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.7rem;
+            border-radius: 999px; background: var(--blue-soft); color: var(--blue-text);
+        }
+        .role.last .tag { background: var(--orange-soft); color: var(--orange-text); }
+
+        /* ── GenAI nested circles ─────────────────── */
+        .pulse-ring { animation: ringPulse 2.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+        @keyframes ringPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+        .chip-out {
+            display: inline-block; padding: 0.25rem 0.8rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600;
+            margin: 0.15rem; border: 1px solid var(--border); background: var(--bg);
+        }
+        .chip-out.gen { background: var(--orange-soft); border-color: rgba(249, 115, 22, 0.5); color: var(--orange-text); }
+        .flow-box {
+            display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; background: var(--bg);
+            border-radius: 12px; padding: 1rem; margin: 0.75rem 0;
+        }
+        .flow-box .model {
+            border: 2px solid var(--primary); border-radius: 8px; padding: 0.5rem 1.1rem; font-weight: 700; background: var(--surface);
+        }
+        .flow-box.gen .model { border-color: var(--orange); }
+
+        /* ── Next-token widget ────────────────────── */
+        .widget { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem; margin: 1rem 0; }
+        .ntp { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .tokens-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0; }
+        .tok {
+            font-family: var(--mono); font-size: 0.85rem; padding: 0.35rem 0.55rem; border-radius: 6px;
+            background: #273449; border: 1px solid var(--border);
+        }
+        .tok.q { border: 2px dashed var(--orange); color: var(--orange-text); font-weight: 700; }
+        .tok.picked { background: var(--orange-soft); border: 2px solid var(--orange); color: var(--orange-text); font-weight: 700; }
+        .pbar {
+            appearance: none; display: grid; grid-template-columns: 74px 1fr 44px; align-items: center; gap: 0.5rem;
+            width: 100%; margin: 0.25rem 0; padding: 0.2rem 0.3rem; background: none; border: 1px solid transparent;
+            border-radius: 6px; font: inherit; color: var(--text); cursor: pointer; text-align: left;
+        }
+        .pbar:hover { border-color: var(--orange); background: var(--orange-soft); }
+        .pbar .lab { font-family: var(--mono); font-size: 0.85rem; }
+        .pbar .track { height: 18px; background: #273449; border-radius: 4px; overflow: hidden; }
+        .pbar .fill { display: block; height: 100%; background: #64748b; transition: width 0.3s; }
+        .pbar.top .fill { background: var(--orange); }
+        .pbar .pct { font-size: 0.85rem; font-weight: 700; text-align: right; }
+        .temp-row { display: grid; grid-template-columns: auto 1fr auto; gap: 0.75rem; align-items: center; margin-top: 1rem; font-size: 0.85rem; }
+        .temp-row input { width: 100%; }
+        .temp-scale {
+            height: 8px; border-radius: 4px; margin-top: 0.35rem;
+            background: linear-gradient(90deg, #1d4ed8, #5b7fc0, #c9a0a0, #f0a060, var(--orange));
+        }
+        .tally { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem; min-height: 1.5em; font-family: var(--mono); }
+
+        /* ── Tokenizer ────────────────────────────── */
+        .tokrow { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin: 0.6rem 0; }
+        .tokrow .kind {
+            flex: 0 0 64px; text-align: center; font-size: 0.75rem; font-weight: 700; padding: 0.3rem 0; border-radius: 999px;
+            background: #1e40af; color: #fff;
+        }
+        .tokrow .kind.code { background: var(--orange); color: #1a0f05; }
+        .tokrow .chips { display: flex; flex-wrap: wrap; gap: 2px; font-family: var(--mono); font-size: 0.85rem; }
+        .tokrow .chips span { padding: 0.3rem 0.4rem; border-radius: 4px; color: var(--text); }
+        .tokrow .count { font-weight: 700; font-size: 0.85rem; color: var(--blue-text); }
+        .tokrow .chips .t0 { background: rgba(96, 165, 250, 0.28); }
+        .tokrow .chips .t1 { background: rgba(251, 146, 60, 0.28); }
+        .tokrow .chips .t2 { background: rgba(52, 211, 153, 0.28); }
+        .tokrow .chips .t3 { background: rgba(167, 139, 250, 0.28); }
+        .tokrow .chips .t4 { background: rgba(251, 191, 36, 0.28); }
+        .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+        .fact { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; }
+        .fact .big { font-size: 1.6rem; font-weight: 800; color: var(--blue-text); line-height: 1.2; }
+        .fact .big.hot { color: var(--orange-text); }
+        .fact h4 { font-size: 0.9rem; margin-bottom: 0.3rem; }
+        .fact p { font-size: 0.82rem; color: var(--text-muted); line-height: 1.45; }
+        textarea.field, input.field {
+            width: 100%; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+            padding: 0.6rem 0.75rem; font: inherit; font-size: 0.9rem;
+        }
+        textarea.field { font-family: var(--mono); min-height: 84px; resize: vertical; }
+        .field-label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; }
+        .splitbar { display: flex; height: 26px; border-radius: 6px; overflow: hidden; background: #273449; margin: 0.6rem 0 0.3rem; }
+        .splitbar span { display: block; height: 100%; transition: width 0.25s; }
+        .splitbar .in { background: #3b82f6; }
+        .splitbar .out { background: #22a06b; }
+        .legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.8rem; color: var(--text-muted); }
+        .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 0.35rem; vertical-align: -1px; }
+
+        /* ── Context window ───────────────────────── */
+        .ctxwrap { display: flex; gap: 0.6rem; align-items: stretch; }
+        .ctxbar { flex: 100 1 0; min-width: 0; display: flex; height: 70px; border-radius: 8px; overflow: hidden; border: 2px solid var(--primary); }
+        .seg {
+            display: grid; place-items: center; text-align: center; font-size: 0.72rem; font-weight: 700; padding: 0 0.2rem;
+            line-height: 1.2; overflow: hidden; min-width: 0; color: #fff; transition: flex-grow 0.3s;
+        }
+        .seg.sys { background: #1e3a8a; }
+        .seg.files { background: #2f5aa8; }
+        .seg.hist { background: #4a6db0; }
+        .seg.task { background: #c2540a; }
+        .seg.free { background: repeating-linear-gradient(45deg, #1e293b, #1e293b 6px, #243247 6px, #243247 12px); color: var(--text-muted); }
+        .seg.ans { background: #1a7a55; }
+        .ctxover {
+            flex: 1 1 0; min-width: 0; border: 2px dashed var(--incorrect); border-radius: 8px; display: grid; place-items: center;
+            text-align: center; font-size: 0.72rem; color: #fca5a5; padding: 0 0.3rem; font-weight: 600; line-height: 1.2;
+        }
+        .ctxover[hidden] { display: none; }
+        .ctx-sliders { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0 0.5rem; }
+        .ctx-sliders label { display: block; font-size: 0.85rem; font-weight: 600; }
+        .ctx-sliders input { width: 100%; margin-top: 0.25rem; }
+        .ctx-legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; font-size: 0.78rem; color: var(--text-muted); margin-top: 0.6rem; }
+        .ctx-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 0.35rem; vertical-align: -1px; }
+        .calls { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .call { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; }
+        .call h4 { font-size: 0.85rem; margin-bottom: 0.5rem; }
+        .minwin { display: flex; height: 34px; border-radius: 6px; overflow: hidden; border: 2px solid var(--primary); background: #1e293b; }
+        .minwin span { display: grid; place-items: center; font-size: 0.68rem; font-weight: 700; color: #fff; }
+        .minwin .a { background: #1e3a8a; flex: 2; }
+        .minwin .b { background: #2f5aa8; flex: 3; }
+        .minwin .c { background: #c2540a; flex: 1; }
+        .minwin .e { flex: 6; color: var(--text-muted); font-weight: 500; }
+        .minwin.empty .a, .minwin.empty .b, .minwin.empty .c { display: none; }
+        .minwin:not(.empty) .e { display: none; }
+        .answer { margin-top: 0.6rem; font-size: 0.85rem; padding: 0.5rem 0.7rem; border-radius: 8px; background: var(--surface); }
+        .answer.good { border-left: 4px solid var(--correct); }
+        .answer.bad { border-left: 4px solid var(--incorrect); }
+
+        /* ── Prompt anatomy ───────────────────────── */
+        .pchips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.75rem 0; }
+        .part-toggle {
+            display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.85rem; border-radius: 999px; cursor: pointer;
+            border: 2px solid var(--c); background: var(--bg); font-weight: 600; font-size: 0.88rem; user-select: none;
+        }
+        .part-toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+        .part-toggle:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
+        .part-toggle::before { content: '\25CB'; color: var(--c); }
+        .part-toggle:has(input:checked) { background: color-mix(in srgb, var(--c) 22%, var(--bg)); }
+        .part-toggle:has(input:checked)::before { content: '\2713'; font-weight: 800; }
+        .part-toggle:not(:has(input:checked)) { opacity: 0.65; }
+        .pline {
+            display: grid; grid-template-columns: 104px 1fr; gap: 0.75rem; align-items: baseline; padding: 0.45rem 0.7rem;
+            border-left: 4px solid var(--c); margin: 0.3rem 0; background: var(--bg); border-radius: 0 6px 6px 0;
+            transition: opacity 0.25s;
+        }
+        .pline .pl { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c); }
+        .pline code { font-family: var(--mono); font-size: 0.82rem; }
+        .pline.off { opacity: 0.35; }
+        .pline.off code { text-decoration: line-through; }
+        .pline.off .pl::after { content: ' (missing)'; text-transform: none; letter-spacing: 0; font-weight: 600; }
+        .c-role { --c: #3b82f6; } .c-task { --c: #818cf8; } .c-ctx { --c: #38bdf8; }
+        .c-con { --c: #ef4444; } .c-ex { --c: #22c55e; } .c-out { --c: #f97316; }
+        .risks { list-style: none; padding: 0; margin: 0.5rem 0 0; font-size: 0.88rem; }
+        .risks li { padding: 0.25rem 0 0.25rem 1.5rem; position: relative; color: #fcd9b0; }
+        .risks li::before { content: '\26A0'; position: absolute; left: 0; color: var(--orange-text); }
+        .risks li.ok { color: var(--text); }
+        .risks li.ok::before { content: '\2713'; color: var(--correct); font-weight: 700; }
+        .meter-line { display: flex; align-items: center; gap: 0.75rem; font-size: 0.9rem; margin-top: 0.5rem; flex-wrap: wrap; }
+        .meter { display: flex; gap: 4px; }
+        .meter i { width: 22px; height: 10px; border-radius: 3px; background: var(--border); }
+        .meter i.on { background: var(--orange); }
+
+        /* ── Context engineering levels ───────────── */
+        .lvl-quote { font-style: italic; color: var(--text-muted); margin: 0.25rem 0 0.75rem; }
+        .layers { margin: 0.5rem 0 1rem; }
+        .layers div {
+            display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: 0.55rem 0.8rem; margin: 0.3rem 0;
+            border-radius: 8px; background: var(--orange-soft); border: 1px solid rgba(249, 115, 22, 0.35); font-size: 0.9rem;
+        }
+        .layers div span { color: var(--text-muted); font-style: italic; font-size: 0.82rem; }
+        .layers div:nth-child(1) { margin-left: 0; }
+        .layers div:nth-child(2) { margin-left: 0.75rem; }
+        .layers div:nth-child(3) { margin-left: 1.5rem; }
+        .layers div:nth-child(4) { margin-left: 2.25rem; }
+
+        /* ── Agents ───────────────────────────────── */
+        .agent-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; align-items: center; }
+        .nest { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 0.9rem 1rem; margin-bottom: 0.6rem; }
+        .nest:nth-child(2) { margin-left: 1.25rem; }
+        .nest:nth-child(3) { margin-left: 2.5rem; border-color: var(--orange); background: var(--orange-soft); }
+        .nest h4 { margin-bottom: 0.15rem; }
+        .nest p { font-size: 0.85rem; color: var(--text-muted); }
+        .agent-svg { width: 100%; max-width: 380px; height: auto; }
+        .ag-node circle { fill: var(--surface); stroke: var(--orange); stroke-width: 3; transition: fill 0.3s; }
+        .ag-node text { fill: var(--text); font-size: 13px; font-weight: 700; text-anchor: middle; }
+        .ag-node.active circle { fill: var(--orange); }
+        .ag-node.active text { fill: #1a0f05; }
+        .ag-arc { fill: none; stroke: var(--orange); stroke-width: 2.5; opacity: 0.7; }
+        .ag-goal circle { fill: #1e3a8a; }
+        .ag-goal text { fill: #fff; text-anchor: middle; font-weight: 700; }
+        .narr { background: var(--bg); border-left: 4px solid var(--orange); border-radius: 0 8px 8px 0; padding: 0.7rem 1rem; font-size: 0.9rem; margin-top: 0.75rem; min-height: 3.6em; }
+        .tools { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
+        .tool { font-size: 0.8rem; font-weight: 600; padding: 0.35rem 0.8rem; border-radius: 8px; background: var(--blue-soft); color: var(--blue-text); border: 1px solid rgba(52, 152, 219, 0.4); }
+        .tool.human { background: rgba(34, 197, 94, 0.12); color: #86efac; border-color: rgba(34, 197, 94, 0.5); }
+
+        /* ── SDLC pain points / baselines ─────────── */
+        .tabs.stages .tab-btn { font-weight: 600; }
+        .bgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.75rem; }
+        .bcard { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; }
+        .bcard h4 { margin-bottom: 0.5rem; }
+        .bline { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.45rem; }
+        .bline b { display: block; color: var(--blue-text); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; }
+        .checklist { list-style: none; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1.25rem; }
+        .checklist label { display: flex; gap: 0.6rem; align-items: flex-start; cursor: pointer; font-size: 0.92rem; }
+        .checklist input { accent-color: var(--correct); width: 18px; height: 18px; margin-top: 0.2rem; flex: 0 0 auto; }
+        .next-box { background: linear-gradient(135deg, #1e3a8a, #1e293b); border: 1px solid var(--primary); border-radius: 12px; padding: 1.1rem 1.25rem; margin-top: 1.25rem; }
+        .next-box h4 { color: #fff; letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.85rem; margin-bottom: 0.35rem; }
+        .agenda { display: flex; height: 44px; border-radius: 8px; overflow: hidden; margin: 0.75rem 0; }
+        .agenda span { display: grid; place-items: center; font-weight: 700; font-size: 0.85rem; color: #fff; border-right: 2px solid var(--bg); }
+        .agenda .a7 { flex: 7; background: #1e3a8a; } .agenda .a8 { flex: 8; background: #254a9e; }
+        .agenda .a10 { flex: 10; background: #2f5aa8; } .agenda .a12 { flex: 12; background: #3b6bb8; }
+        .agenda .a13 { flex: 13; background: #c2540a; }
+        .agenda-list { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.25rem 1rem; font-size: 0.85rem; color: var(--text-muted); }
+        .agenda-list b { color: var(--text); }
+        .source-note { overflow-wrap: anywhere; font-size: 0.78rem; color: var(--neutral); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+
+        /* ── Responsive ───────────────────────────── */
+        @media (max-width: 860px) {
+            .ladder { grid-template-columns: 1fr; }
+            .ladder li:nth-child(n) .rung { min-height: 0; border-radius: 12px; }
+            .ntp, .agent-grid, .two-col, .calls, .ctx-sliders, .checklist { grid-template-columns: 1fr; }
+            .nest:nth-child(2), .nest:nth-child(3) { margin-left: 0.6rem; }
+        }
+        @media (max-width: 640px) {
+            .jnode { width: 72px; }
+            .seg, .ctxover { font-size: 0; }
+            .lane-label { flex: 1 1 100%; }
+            .pline { grid-template-columns: 1fr; gap: 0.1rem; }
+            .temp-row { grid-template-columns: 1fr; }
+            .pbar { grid-template-columns: 64px 1fr 40px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .pulse-ring { animation: none; }
+        }
+    </style>
+</head>
+<body>
+    <svg class="sprite" aria-hidden="true" focusable="false">
+        <defs>
+            <symbol id="i-person" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"></circle><path d="M4 22c0-4.4 3.6-8 8-8s8 3.6 8 8z"></path></symbol>
+            <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"></path></symbol>
+        </defs>
+    </svg>
+
+    <!-- ════════════════════════════════════════════ -->
+    <!-- HERO                                        -->
+    <!-- ════════════════════════════════════════════ -->
+    <section class="hero">
+        <h1>Module 01: Course Objectives &amp; GenAI/LLM Recap</h1>
+        <p class="subtitle">Why we're here, what an AI Champion does, and a shared GenAI/LLM vocabulary &mdash; climbed from basics to agents.</p>
+        <span class="badge">Interactive Concept Guide</span>
+        <div class="hero-meta">
+            <span>60 minutes</span>
+            <span>Facilitated discussion &mdash; no lab</span>
+            <span>Honeywell Software Engineering &middot; IA &middot; BA &middot; PA&amp;T</span>
+        </div>
+    </section>
+
+    <main class="container">
+        <!-- ══════════════════════════════════════════ -->
+        <!-- THE LADDER (OVERVIEW / NAVIGATION)        -->
+        <!-- ══════════════════════════════════════════ -->
+        <h2 class="section-header">The Concept Ladder: From GenAI to Agents</h2>
+        <p class="lead">Each rung depends on the one below it. Select a rung to jump to the card that explains it, then play with the visual inside.</p>
+
+        <div class="ladder-axis" aria-hidden="true"><span>Basics</span><span class="adv">Advanced &rarr;</span></div>
+        <ol class="ladder">
+            <li><button class="rung" type="button" data-open-card="card-3"><span class="n">Rung 1</span><span class="t">Generative AI</span><span class="d">Models that create new content</span><span class="go">Open card &darr;</span></button></li>
+            <li><button class="rung" type="button" data-open-card="card-4"><span class="n">Rung 2</span><span class="t">LLM</span><span class="d">Predicts the next token, at scale</span><span class="go">Open card &darr;</span></button></li>
+            <li><button class="rung" type="button" data-open-card="card-5"><span class="n">Rung 3</span><span class="t">Tokens</span><span class="d">The unit of input, output &amp; cost</span><span class="go">Open card &darr;</span></button></li>
+            <li><button class="rung" type="button" data-open-card="card-6"><span class="n">Rung 4</span><span class="t">Context Window</span><span class="d">The model's whole working memory</span><span class="go">Open card &darr;</span></button></li>
+            <li><button class="rung" type="button" data-open-card="card-7"><span class="n">Rung 5</span><span class="t">Prompt</span><span class="d">Role, task, constraints, format</span><span class="go">Open card &darr;</span></button></li>
+            <li><button class="rung" type="button" data-open-card="card-8"><span class="n">Rung 6</span><span class="t">Context Engineering</span><span class="d">Selecting &amp; shaping what goes in</span><span class="go">Open card &darr;</span></button></li>
+            <li><button class="rung" type="button" data-open-card="card-9"><span class="n">Rung 7</span><span class="t">Agent</span><span class="d">LLM + tools + a loop toward a goal</span><span class="go">Open card &darr;</span></button></li>
+        </ol>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- PART 1 — WHY WE'RE HERE                   -->
+        <!-- ══════════════════════════════════════════ -->
+        <h2 class="section-header">Part 1 &middot; Why We're Here</h2>
+
+        <!-- Card 1 -->
+        <div class="concept-card open" id="card-1">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="true" aria-controls="concept-1-body">
+                    <span class="card-title-text"><span class="rung-tag">Objectives</span>Six problems, twelve modules, one journey</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-1-body">
+                <div class="card-body-inner">
+                    <p class="definition">The objectives aren't "learn AI tools". They are six delivery problems, each owned by specific modules in a deliberate 12-module progression &mdash; each module assumes the one before it.</p>
+
+                    <p class="viz-title">Try it &middot; pick a problem and see which modules fix it</p>
+                    <div class="problems" id="problems">
+                        <button class="pchip" type="button" aria-pressed="false" data-mods="2,3,4,5" data-label="Modules 02&ndash;05" data-title="Slow implementation cycles">
+                            <span class="pt">Slow implementation cycles</span>
+                            <span class="pd">Repetitive requirements, architecture, coding, test, docs, CI/CD and review work stretches delivery.</span>
+                            <span class="pm">Fixed in Modules 02&ndash;05</span>
+                        </button>
+                        <button class="pchip" type="button" aria-pressed="false" data-mods="5,6" data-label="Modules 05&ndash;06" data-title="Brownfield disruption risk">
+                            <span class="pt">Brownfield disruption risk</span>
+                            <span class="pd">AI changes that violate existing patterns, break contracts or introduce regressions.</span>
+                            <span class="pm">Fixed in Modules 05&ndash;06</span>
+                        </button>
+                        <button class="pchip" type="button" aria-pressed="false" data-mods="3,4" data-label="Modules 03&ndash;04" data-title="Prompts instead of specs">
+                            <span class="pt">Prompts instead of specs</span>
+                            <span class="pd">Requirements translated loosely into tasks give inconsistent results from prompt-only work.</span>
+                            <span class="pm">Fixed in Modules 03&ndash;04</span>
+                        </button>
+                        <button class="pchip" type="button" aria-pressed="false" data-mods="6,8" data-label="Modules 06 and 08" data-title="Manual testing &amp; PR review">
+                            <span class="pt">Manual testing &amp; PR review</span>
+                            <span class="pd">Review bottlenecks; hard to prove spec compliance, integration behaviour and regression safety.</span>
+                            <span class="pm">Fixed in Modules 06, 08</span>
+                        </button>
+                        <button class="pchip" type="button" aria-pressed="false" data-mods="3,11" data-label="Modules 03 and 11" data-title="Token waste, weak context">
+                            <span class="pt">Token waste, weak context</span>
+                            <span class="pd">Excessive token use and undisciplined context raise AI cost and lower output quality.</span>
+                            <span class="pm">Fixed in Modules 03, 11</span>
+                        </button>
+                        <button class="pchip" type="button" aria-pressed="false" data-mods="11,12" data-label="Modules 11&ndash;12" data-title="No visibility into AI value">
+                            <span class="pt">No visibility into AI value</span>
+                            <span class="pd">Little insight into usage, quality, failure patterns, token economics or productivity ROI.</span>
+                            <span class="pm">Fixed in Modules 11&ndash;12</span>
+                        </button>
+                    </div>
+                    <p class="readout" id="journey-readout" role="status" aria-live="polite">Select a problem to light up the modules that own it.</p>
+
+                    <div class="journey" role="group" aria-label="The 12-module journey">
+                        <div class="jgroup">
+                            <h4>Foundation</h4>
+                            <ol class="jnodes">
+                                <li class="jnode here" data-m="1"><div class="num">1</div>Objectives &amp; GenAI Recap</li>
+                                <li class="jnode" data-m="2"><div class="num">2</div>Copilot Advanced</li>
+                                <li class="jnode" data-m="3"><div class="num">3</div>Prompt &amp; Context Eng.</li>
+                            </ol>
+                        </div>
+                        <div class="jgroup">
+                            <h4>Build &amp; Validate</h4>
+                            <ol class="jnodes" start="4">
+                                <li class="jnode" data-m="4"><div class="num">4</div>Spec-Driven Dev (Spec Kit)</li>
+                                <li class="jnode" data-m="5"><div class="num">5</div>SDD to Full SDLC</li>
+                                <li class="jnode" data-m="6"><div class="num">6</div>Test Strategy &amp; Validation</li>
+                            </ol>
+                        </div>
+                        <div class="jgroup">
+                            <h4>Extend with Tools &amp; Agents</h4>
+                            <ol class="jnodes" start="7">
+                                <li class="jnode" data-m="7"><div class="num">7</div>MCP &amp; Custom MCP Server</li>
+                                <li class="jnode" data-m="8"><div class="num">8</div>PR Automation &amp; LLM-Judge</li>
+                                <li class="jnode" data-m="9"><div class="num">9</div>No-Code Agents (Rovo)</li>
+                                <li class="jnode" data-m="10"><div class="num">10</div>Code Agents &amp; Simple RAG</li>
+                            </ol>
+                        </div>
+                        <div class="jgroup">
+                            <h4>Govern</h4>
+                            <ol class="jnodes" start="11">
+                                <li class="jnode" data-m="11"><div class="num">11</div>Observability, ROI &amp; Gov.</li>
+                            </ol>
+                        </div>
+                        <div class="jgroup">
+                            <h4>Capstone</h4>
+                            <ol class="jnodes" start="12">
+                                <li class="jnode" data-m="12"><div class="num">12</div>Capstone &amp; Roadmap</li>
+                            </ol>
+                        </div>
+                    </div>
+                    <p class="note">Orange fill = you are here (Module 1). A ringed orange node = a module that addresses the selected problem.</p>
+
+                    <p class="viz-title">Two lanes through the same lifecycle</p>
+                    <div class="lane gf">
+                        <div class="lane-label">Greenfield</div>
+                        <div class="lane-step">Frame problem</div><div class="lane-step">Specify</div><div class="lane-step">Plan &amp; tasks</div>
+                        <div class="lane-step">Implement</div><div class="lane-step">Test</div><div class="lane-step">Review &amp; release</div>
+                    </div>
+                    <div class="lane bf">
+                        <div class="lane-label">Brownfield</div>
+                        <div class="lane-step">Understand repo</div><div class="lane-step">Analyse impact</div><div class="lane-step">Preserve patterns</div>
+                        <div class="lane-step">Change safely</div><div class="lane-step">Protect regressions</div><div class="lane-step">Modernise</div>
+                    </div>
+
+                    <div class="callout"><strong>Why this matters:</strong> every later module assumes the shared vocabulary and baseline we set today. The capstone has to prove movement against the measures we agree in this hour.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="concept-card" id="card-2">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-2-body">
+                    <span class="card-title-text"><span class="rung-tag">Role</span>The AI Champion: more than a power user</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-2-body">
+                <div class="card-body-inner">
+                    <p class="definition">Champions turn individual AI skill into team capability &mdash; and prove it with evidence. The role has four layers, each building on the last.</p>
+
+                    <div class="roles">
+                        <div class="role">
+                            <span class="rn">01</span>
+                            <svg viewBox="0 0 120 64" fill="currentColor" role="img" aria-label="One person at a keyboard">
+                                <use href="#i-person" x="46" y="2" width="28" height="28"></use>
+                                <rect x="28" y="38" width="64" height="20" rx="4" opacity="0.9"></rect>
+                                <g fill="#0f172a"><rect x="34" y="43" width="8" height="4" rx="1"></rect><rect x="46" y="43" width="8" height="4" rx="1"></rect><rect x="58" y="43" width="8" height="4" rx="1"></rect><rect x="70" y="43" width="8" height="4" rx="1"></rect><rect x="40" y="50" width="40" height="4" rx="1"></rect></g>
+                            </svg>
+                            <h4>Practitioner</h4>
+                            <p>Uses Copilot Enterprise at power-user level: agent mode, custom instructions, skills, specs and MCP tools.</p>
+                            <span class="tag">Uses it well</span>
+                        </div>
+                        <div class="role">
+                            <span class="rn">02</span>
+                            <svg viewBox="0 0 120 64" fill="currentColor" role="img" aria-label="Four reusable asset tiles">
+                                <rect x="28" y="4" width="28" height="26" rx="4"></rect><rect x="64" y="4" width="28" height="26" rx="4" opacity="0.7"></rect>
+                                <rect x="28" y="34" width="28" height="26" rx="4" opacity="0.7"></rect><rect x="64" y="34" width="28" height="26" rx="4"></rect>
+                            </svg>
+                            <h4>Codifier</h4>
+                            <p>Turns what works into reusable assets &mdash; instruction sets, skills, spec packs, prompt templates.</p>
+                            <span class="tag">Makes it repeatable</span>
+                        </div>
+                        <div class="role">
+                            <span class="rn">03</span>
+                            <svg viewBox="0 0 120 64" fill="currentColor" role="img" aria-label="A shield with a check mark">
+                                <use href="#i-shield" x="42" y="2" width="36" height="36"></use>
+                                <path d="M52 19l6 6 11-12" stroke="#0f172a" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+                                <rect x="24" y="46" width="72" height="8" rx="4" opacity="0.5"></rect>
+                            </svg>
+                            <h4>Guardian</h4>
+                            <p>Holds the line on quality gates, spec compliance, security, governance and human review.</p>
+                            <span class="tag">Keeps it safe</span>
+                        </div>
+                        <div class="role last">
+                            <span class="rn">04</span>
+                            <svg viewBox="0 0 120 64" fill="currentColor" role="img" aria-label="One presenter in front of a group of people">
+                                <use href="#i-person" x="46" y="0" width="30" height="30"></use>
+                                <use href="#i-person" x="8" y="34" width="22" height="22" opacity="0.6"></use>
+                                <use href="#i-person" x="34" y="36" width="22" height="22" opacity="0.6"></use>
+                                <use href="#i-person" x="64" y="36" width="22" height="22" opacity="0.6"></use>
+                                <use href="#i-person" x="90" y="34" width="22" height="22" opacity="0.6"></use>
+                            </svg>
+                            <h4>Multiplier &amp; Measurer</h4>
+                            <p>Coaches the team, tracks baseline-to-ROI evidence and owns the adoption roadmap.</p>
+                            <span class="tag">Spreads &amp; proves it</span>
+                        </div>
+                    </div>
+
+                    <div class="callout warm"><strong>The Champion's job:</strong> operationalise judgement, not add caution. You already know how to engineer &mdash; the programme makes good AI-assisted practice repeatable, governed and measurable across your team.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- PART 2 — THE LADDER, RUNG BY RUNG         -->
+        <!-- ══════════════════════════════════════════ -->
+        <h2 class="section-header">Part 2 &middot; Climbing the Ladder, Rung by Rung</h2>
+
+        <!-- Card 3: GenAI -->
+        <div class="concept-card" id="card-3">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-3-body">
+                    <span class="card-title-text"><span class="rung-tag">Rung 1</span>Generative AI creates new content &mdash; it doesn't just classify</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-3-body">
+                <div class="card-body-inner">
+                    <p class="definition">GenAI sits inside deep learning, inside machine learning, inside AI. What changes when a model <em>generates</em> rather than <em>labels</em> is what comes out of it.</p>
+
+                    <div class="diagram-container">
+                        <svg viewBox="0 0 360 300" width="360" height="300" role="img"
+                             aria-label="Four nested circles, outermost to innermost: Artificial Intelligence, Machine Learning, Deep Learning, and Generative AI including LLMs, highlighted in orange.">
+                            <circle cx="180" cy="150" r="135" fill="rgba(52,152,219,0.08)" stroke="#3b6bb8" stroke-width="1.5"></circle>
+                            <circle cx="180" cy="185" r="100" fill="rgba(52,152,219,0.14)" stroke="#3b6bb8" stroke-width="1.5"></circle>
+                            <circle cx="180" cy="217" r="68" fill="rgba(52,152,219,0.26)" stroke="#5b8fd0" stroke-width="1.5"></circle>
+                            <circle class="pulse-ring" cx="180" cy="245" r="40" fill="#f97316"></circle>
+                            <g text-anchor="middle" font-size="13" font-weight="700" fill="#cbd5e1">
+                                <text x="180" y="42">Artificial Intelligence</text>
+                                <text x="180" y="104">Machine Learning</text>
+                                <text x="180" y="166">Deep Learning</text>
+                                <text x="180" y="241" fill="#1a0f05">Generative AI</text>
+                                <text x="180" y="257" fill="#1a0f05" font-size="11">(incl. LLMs)</text>
+                            </g>
+                        </svg>
+                    </div>
+
+                    <p class="viz-title">Try it &middot; same model box, different job</p>
+                    <div class="tabs" role="tablist" aria-label="Discriminative versus generative AI">
+                        <button class="tab-btn" type="button" role="tab" id="tab-btn-d" aria-selected="true" aria-controls="tab-d">Discriminative AI</button>
+                        <button class="tab-btn" type="button" role="tab" id="tab-btn-g" aria-selected="false" aria-controls="tab-g">Generative AI</button>
+                    </div>
+                    <div id="tab-d" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-d" tabindex="0">
+                        <p class="note flush">Learns boundaries &rarr; picks a label.</p>
+                        <div class="flow-box">
+                            <strong>Sensor reading</strong><span aria-hidden="true">&rarr;</span>
+                            <span class="model">Model</span><span aria-hidden="true">&rarr;</span>
+                            <span><span class="chip-out">Fault</span><span class="chip-out">No fault</span></span>
+                        </div>
+                        <p>The output is <strong>one of a fixed set of labels</strong>. Nothing new is created.</p>
+                    </div>
+                    <div id="tab-g" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-g" tabindex="0" hidden>
+                        <p class="note flush">Learns patterns &rarr; produces new content.</p>
+                        <div class="flow-box gen">
+                            <strong>Prompt + context</strong><span aria-hidden="true">&rarr;</span>
+                            <span class="model">Model</span><span aria-hidden="true">&rarr;</span>
+                            <span><span class="chip-out gen">Code</span><span class="chip-out gen">Tests</span><span class="chip-out gen">Specs</span><span class="chip-out gen">Docs</span></span>
+                        </div>
+                        <p>The output is <strong>new, open-ended content</strong> &mdash; which is why it needs checking.</p>
+                    </div>
+
+                    <div class="callout warm"><strong>In this programme:</strong> GenAI means LLMs generating code, tests, specs and reviews &mdash; output that must be verified like any colleague's first draft.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 4: LLM -->
+        <div class="concept-card" id="card-4">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-4-body">
+                    <span class="card-title-text"><span class="rung-tag">Rung 2</span>An LLM is a next-token predictor, trained at massive scale</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-4-body">
+                <div class="card-body-inner">
+                    <p class="definition">One token at a time, the model picks a likely continuation &mdash; then repeats. It has seen this pattern in vast amounts of code and text.</p>
+
+                    <div class="widget">
+                        <div class="ntp">
+                            <div>
+                                <p class="viz-title flush">The code so far</p>
+                                <div class="tokens-row" id="ntp-seq">
+                                    <span class="tok">public</span><span class="tok">void</span><span class="tok">Update</span><span class="tok">Zone</span><span class="tok">Setpoint</span><span class="tok">(</span><span class="tok q" id="ntp-slot">?</span>
+                                </div>
+                                <p class="note">Each box is one token. Click a bar on the right to make the model "choose" that token &mdash; or let it sample.</p>
+                                <div class="controls">
+                                    <button class="btn-sm hot" type="button" id="ntp-sample">Sample once</button>
+                                    <button class="btn-sm" type="button" id="ntp-sample20">Sample 20&times;</button>
+                                    <button class="btn-sm" type="button" id="ntp-reset">Reset</button>
+                                </div>
+                                <p class="tally" id="ntp-tally" role="status" aria-live="polite"></p>
+                            </div>
+                            <div>
+                                <p class="viz-title flush">Next-token probabilities (illustrative)</p>
+                                <div id="ntp-bars">
+                                    <button class="pbar" type="button" data-i="0" aria-label="Pick token int"><span class="lab">int</span><span class="track"><span class="fill"></span></span><span class="pct"></span></button>
+                                    <button class="pbar" type="button" data-i="1" aria-label="Pick token double"><span class="lab">double</span><span class="track"><span class="fill"></span></span><span class="pct"></span></button>
+                                    <button class="pbar" type="button" data-i="2" aria-label="Pick token Zone"><span class="lab">Zone</span><span class="track"><span class="fill"></span></span><span class="pct"></span></button>
+                                    <button class="pbar" type="button" data-i="3" aria-label="Pick token string"><span class="lab">string</span><span class="track"><span class="fill"></span></span><span class="pct"></span></button>
+                                    <button class="pbar" type="button" data-i="4" aria-label="Pick any other token"><span class="lab">other</span><span class="track"><span class="fill"></span></span><span class="pct"></span></button>
+                                </div>
+                                <div class="temp-row">
+                                    <label for="ntp-temp">Temperature</label>
+                                    <input type="range" id="ntp-temp" min="0.2" max="2" step="0.1" value="1">
+                                    <output id="ntp-temp-out" for="ntp-temp">1.0</output>
+                                </div>
+                                <div class="temp-scale" aria-hidden="true"></div>
+                                <p class="note">Low = precise (code &amp; refactors) &middot; High = varied (brainstorming). At 1.0 the bars match the deck's example; "other" is the remaining 5%.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="viz-title">How an LLM becomes a useful assistant</p>
+                    <div class="flow">
+                        <div class="flow-step wide"><div class="step-label">Stage 1</div><div class="step-name">Pre-training</div><div class="step-desc">Predict the next token across huge volumes of text &amp; code</div></div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step wide"><div class="step-label">Stage 2</div><div class="step-name">Instruction tuning</div><div class="step-desc">Learn to follow instructions and answer tasks</div></div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step wide"><div class="step-label">Stage 3</div><div class="step-name">Preference alignment</div><div class="step-desc">Tuned toward helpful, safe, preferred answers</div></div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step wide accent"><div class="step-label">Stage 4 &middot; your turn</div><div class="step-name">Inference</div><div class="step-desc">Your prompt + context steer what it generates</div></div>
+                    </div>
+
+                    <div class="callout warm"><strong>Implication:</strong> fluent is not the same as correct. Output is probable, not verified &mdash; which is why specs, tests and review sit at the core of this programme.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 5: Tokens -->
+        <div class="concept-card" id="card-5">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-5-body">
+                    <span class="card-title-text"><span class="rung-tag">Rung 3</span>Tokens: the unit of input, output, limits and cost</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-5-body">
+                <div class="card-body-inner">
+                    <p class="definition">Models don't read words or lines; they read tokens. Every limit and every bill is counted in them.</p>
+
+                    <div class="widget">
+                        <div class="tokrow">
+                            <span class="kind">TEXT</span>
+                            <span class="chips" role="img" aria-label="The sentence 'The chiller setpoint drifted by 2 degrees C overnight.' split into 10 tokens">
+                                <span class="t0">The</span><span class="t1">·chiller</span><span class="t2">·set</span><span class="t3">point</span><span class="t4">·drifted</span><span class="t0">·by</span><span class="t1">·2</span><span class="t2">°C</span><span class="t3">·overnight</span><span class="t4">.</span>
+                            </span>
+                            <span class="count">10 tokens</span>
+                        </div>
+                        <div class="tokrow">
+                            <span class="kind code">CODE</span>
+                            <span class="chips" role="img" aria-label="The Python line 'def get_zone_temp(self, zone_id):' split into 10 tokens">
+                                <span class="t0">def</span><span class="t1">·get</span><span class="t2">_zone</span><span class="t3">_temp</span><span class="t4">(</span><span class="t0">self</span><span class="t1">,</span><span class="t2">·zone</span><span class="t3">_id</span><span class="t4">):</span>
+                            </span>
+                            <span class="count">10 tokens</span>
+                        </div>
+                        <p class="note">Illustrative split &mdash; every model family has its own tokenizer. &middot; marks a leading space, which is part of the token. Note how <code>setpoint</code> and <code>get_zone_temp</code> break into pieces.</p>
+                    </div>
+
+                    <p class="viz-title">Try it &middot; rough token maths (input + output both count)</p>
+                    <div class="widget">
+                        <label class="field-label" for="tk-input">Paste or type a prompt</label>
+                        <textarea class="field" id="tk-input" rows="3">Add input validation to ZoneController.UpdateSetpoint. Setpoint range 10-32 C. No new packages.</textarea>
+                        <label class="field-label gap-top" for="tk-out">Expected answer length: <span id="tk-out-val">100</span> tokens</label>
+                        <input type="range" id="tk-out" min="0" max="500" step="10" value="100">
+                        <div class="splitbar" aria-hidden="true"><span class="in" id="tk-bar-in"></span><span class="out" id="tk-bar-out"></span></div>
+                        <div class="legend"><span><i class="sw-in"></i>Input (prompt + context)</span><span><i class="sw-out"></i>Output (the answer)</span></div>
+                        <p class="readout" id="tk-readout" role="status" aria-live="polite"></p>
+                        <p class="note">Estimate = characters &divide; 4, the deck's rule of thumb for English prose. Code, symbols and identifiers usually split finer, so real counts run higher.</p>
+                    </div>
+
+                    <div class="facts">
+                        <div class="fact"><div class="big">&asymp; 4</div><h4>chars / token</h4><p>Rough rule of thumb for English prose. Code, symbols and identifiers usually split finer.</p></div>
+                        <div class="fact"><div class="big">In + Out</div><h4>both count</h4><p>You pay for and are limited by input tokens (prompt + context) and output tokens.</p></div>
+                        <div class="fact"><div class="big">Every</div><h4>limit is tokens</h4><p>Context window size, rate limits and usage quotas are all measured in tokens.</p></div>
+                        <div class="fact"><div class="big hot">More &ne;</div><h4>better</h4><p>Extra tokens raise cost and latency and can dilute focus &mdash; context discipline pays twice.</p></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 6: Context window -->
+        <div class="concept-card" id="card-6">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-6-body">
+                    <span class="card-title-text"><span class="rung-tag">Rung 4</span>The context window is the model's entire working memory</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-6-body">
+                <div class="card-body-inner">
+                    <p class="definition">A fixed token budget shared by instructions, files, history, your task &mdash; and the answer. What fills it is decided by the tool, your instructions and your choices.</p>
+
+                    <div class="widget">
+                        <p class="viz-title flush">Try it &middot; fill the window until it overflows</p>
+                        <div class="ctxwrap">
+                            <div class="ctxbar" role="img" aria-label="The context window as a horizontal bar made of system instructions, retrieved files, conversation history, your task, free space and a reserved answer area." id="ctx-bar">
+                                <div class="seg sys" id="seg-sys">System &amp; instr.</div>
+                                <div class="seg files" id="seg-files"></div>
+                                <div class="seg hist" id="seg-hist"></div>
+                                <div class="seg task" id="seg-task">Task</div>
+                                <div class="seg free" id="seg-free"></div>
+                                <div class="seg ans" id="seg-ans">Answer</div>
+                            </div>
+                            <div class="ctxover" id="ctx-over" hidden>Older history &amp; extra files</div>
+                        </div>
+                        <div class="ctx-legend" aria-hidden="true">
+                            <span><i class="sw-sys"></i>System &amp; custom instructions</span>
+                            <span><i class="sw-files"></i>Retrieved repository files</span>
+                            <span><i class="sw-hist"></i>Conversation history</span>
+                            <span><i class="sw-task"></i>Your task</span>
+                            <span><i class="sw-ans"></i>Reserved for the answer</span>
+                        </div>
+                        <div class="ctx-sliders">
+                            <div><label for="ctx-files">Retrieved files to load: <span id="ctx-files-out">30</span></label><input type="range" id="ctx-files" min="5" max="60" step="1" value="30"></div>
+                            <div><label for="ctx-hist">Conversation history kept: <span id="ctx-hist-out">25</span></label><input type="range" id="ctx-hist" min="5" max="50" step="1" value="25"></div>
+                        </div>
+                        <p class="readout" id="ctx-readout" role="status" aria-live="polite"></p>
+                        <p class="note">Units are illustrative "% of the window". Here the files you retrieve win and older history is what spills over; in a real tool, which content gets dropped, truncated or summarised is up to that tool.</p>
+                    </div>
+
+                    <p class="viz-title">Try it &middot; "stateless between calls"</p>
+                    <div class="calls">
+                        <div class="call">
+                            <h4>Call 1</h4>
+                            <div class="minwin" role="img" aria-label="Call 1 context window filled with instructions, files and task"><span class="a">Instr.</span><span class="b">Files</span><span class="c">Task</span></div>
+                            <p class="answer good">&#10003; Answer follows your house patterns.</p>
+                        </div>
+                        <div class="call">
+                            <h4>Call 2</h4>
+                            <div class="minwin empty" id="call2-win" role="img" aria-label="Call 2 context window"><span class="a">Instr.</span><span class="b">Files</span><span class="c">Task</span><span class="e">Empty &mdash; the model remembers nothing</span></div>
+                            <p class="answer bad" id="call2-answer" role="status" aria-live="polite">&#10007; Generic answer: nothing from Call 1 is in this window.</p>
+                        </div>
+                    </div>
+                    <div class="controls">
+                        <label><input type="checkbox" id="call2-resend"> Re-send instructions &amp; files with Call 2</label>
+                    </div>
+
+                    <div class="facts">
+                        <div class="fact"><h4>Stateless between calls</h4><p>The model remembers nothing on its own. Everything it knows about your task must be in this window, every time.</p></div>
+                        <div class="fact"><h4>Noise dilutes focus</h4><p>Long, loosely relevant context makes it easier to miss the detail that matters &mdash; and costs more tokens.</p></div>
+                        <div class="fact"><h4>Temperature: precise &harr; varied</h4><p>Code &amp; refactors: keep it low. Brainstorming: higher. (Play with it on the Rung 2 card.)</p></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 7: Prompt anatomy -->
+        <div class="concept-card" id="card-7">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-7-body">
+                    <span class="card-title-text"><span class="rung-tag">Rung 5</span>Anatomy of an engineering prompt</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-7-body">
+                <div class="card-body-inner">
+                    <p class="definition">Six parts turn a vague request into a task the model can do well. Switch parts off to see what you lose.</p>
+
+                    <fieldset class="widget fieldset-widget">
+                        <legend class="viz-title">Include in the prompt (example is illustrative)</legend>
+                        <div class="pchips" id="part-toggles">
+                            <label class="part-toggle c-role"><input type="checkbox" data-part="role" checked>Role</label>
+                            <label class="part-toggle c-task"><input type="checkbox" data-part="task" checked>Task</label>
+                            <label class="part-toggle c-ctx"><input type="checkbox" data-part="ctx" checked>Context</label>
+                            <label class="part-toggle c-con"><input type="checkbox" data-part="con" checked>Constraints</label>
+                            <label class="part-toggle c-ex"><input type="checkbox" data-part="ex" checked>Examples</label>
+                            <label class="part-toggle c-out"><input type="checkbox" data-part="out" checked>Output format</label>
+                        </div>
+                        <div id="prompt-doc">
+                            <div class="pline c-role" data-line="role"><span class="pl">Role</span><code>You are a senior C#/.NET engineer on a building-automation API.</code></div>
+                            <div class="pline c-task" data-line="task"><span class="pl">Task</span><code>Add input validation to ZoneController.UpdateSetpoint.</code></div>
+                            <div class="pline c-ctx" data-line="ctx"><span class="pl">Context</span><code>Validators live in /Validation and use FluentValidation; see ZoneValidator.cs.</code></div>
+                            <div class="pline c-con" data-line="con"><span class="pl">Constraints</span><code>Setpoint range 10-32 °C. No new packages. Don't change the public API contract.</code></div>
+                            <div class="pline c-ex" data-line="ex"><span class="pl">Examples</span><code>Follow the pattern in AlarmThresholdValidator.cs.</code></div>
+                            <div class="pline c-out" data-line="out"><span class="pl">Output format</span><code>Return a diff plus xUnit tests for valid, boundary and invalid values.</code></div>
+                        </div>
+                        <div class="meter-line">
+                            <span class="meter" id="prompt-meter" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                            <strong id="prompt-count">6 of 6 parts included</strong>
+                        </div>
+                        <ul class="risks" id="prompt-risks" role="status" aria-live="polite"></ul>
+                    </fieldset>
+
+                    <div class="callout warm"><strong>Rule of thumb:</strong> if a new teammate couldn't do the task from your prompt alone, the model can't either. Module 03 recaps prompt patterns: decomposition, iteration and verification.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 8: Context engineering -->
+        <div class="concept-card" id="card-8">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-8-body">
+                    <span class="card-title-text"><span class="rung-tag">Rung 6</span>From prompt-only to context-engineered</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-8-body">
+                <div class="card-body-inner">
+                    <p class="definition">The biggest quality lever isn't a cleverer prompt &mdash; it's what you put in the window, and how.</p>
+                    <div class="pill-row"><span class="pill">Selected</span><span class="pill">Layered</span><span class="pill">Compressed</span><span class="pill">Task-scoped</span><span class="pill blue">Deep-dive: Module 03</span><span class="pill blue">Powers SDD: Module 04</span></div>
+
+                    <div class="tabs" role="tablist" aria-label="Three levels of context discipline">
+                        <button class="tab-btn" type="button" role="tab" id="tab-btn-l1" aria-selected="true" aria-controls="tab-l1">Level 1 &middot; Prompt-only</button>
+                        <button class="tab-btn" type="button" role="tab" id="tab-btn-l2" aria-selected="false" aria-controls="tab-l2">Level 2 &middot; Prompt + pasted context</button>
+                        <button class="tab-btn" type="button" role="tab" id="tab-btn-l3" aria-selected="false" aria-controls="tab-l3">Level 3 &middot; Context-engineered</button>
+                    </div>
+
+                    <div id="tab-l1" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-l1" tabindex="0">
+                        <p class="lvl-quote">&ldquo;Add validation to the setpoint endpoint.&rdquo;</p>
+                        <ul class="crosses"><li>Generic code</li><li>Ignores house patterns</li><li>Many iterations</li></ul>
+                    </div>
+                    <div id="tab-l2" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-l2" tabindex="0" hidden>
+                        <p class="lvl-quote">Copies whole files and old chat into the prompt.</p>
+                        <ul class="ticks"><li>Better fit</li></ul>
+                        <ul class="crosses"><li>Bloated &amp; costly</li><li>Inconsistent across people</li></ul>
+                    </div>
+                    <div id="tab-l3" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-l3" tabindex="0" hidden>
+                        <div class="layers">
+                            <div>Custom instructions <span>always on</span></div>
+                            <div>Relevant files &amp; APIs <span>selected</span></div>
+                            <div>Spec &amp; acceptance criteria <span>task-scoped</span></div>
+                            <div>Existing tests <span>for verification</span></div>
+                        </div>
+                        <ul class="ticks"><li>Right first time more often</li><li>Fewer tokens wasted</li><li>Repeatable across the team</li></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 9: Agents -->
+        <div class="concept-card" id="card-9">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-9-body">
+                    <span class="card-title-text"><span class="rung-tag top">Rung 7</span>Agents add a loop: plan, act with tools, observe, adjust</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-9-body">
+                <div class="card-body-inner">
+                    <p class="definition">An agent is an LLM that pursues a goal over many steps &mdash; using tools, checking results, iterating.</p>
+
+                    <div class="agent-grid">
+                        <div>
+                            <div class="nest"><h4>LLM</h4><p>Answers one question from what's in the window.</p></div>
+                            <div class="nest"><h4>Assistant</h4><p>Answers inside your IDE, grounded in your open code.</p></div>
+                            <div class="nest"><h4>Agent</h4><p>Takes a goal, plans steps, calls tools, verifies, repeats.</p></div>
+                            <p class="note">Each step adds autonomy &mdash; and the need for guardrails.</p>
+                        </div>
+                        <div>
+                            <svg class="agent-svg" viewBox="0 0 360 300" role="img"
+                                 aria-label="A loop diagram: the goal 'fix failing test' sits in the middle, surrounded by four steps in a clockwise cycle: Plan, Act, Observe, Adjust.">
+                                <defs>
+                                    <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                                        <path d="M0 0 10 5 0 10z" fill="#f97316"></path>
+                                    </marker>
+                                </defs>
+                                <path class="ag-arc" d="M227.9 59.9 A102 102 0 0 1 270.1 102.1" marker-end="url(#arrowhead)"></path>
+                                <path class="ag-arc" d="M270.1 197.9 A102 102 0 0 1 227.9 240.1" marker-end="url(#arrowhead)"></path>
+                                <path class="ag-arc" d="M132.1 240.1 A102 102 0 0 1 89.9 197.9" marker-end="url(#arrowhead)"></path>
+                                <path class="ag-arc" d="M89.9 102.1 A102 102 0 0 1 132.1 59.9" marker-end="url(#arrowhead)"></path>
+                                <g class="ag-goal"><circle cx="180" cy="150" r="44"></circle><text x="180" y="146" font-size="13">GOAL</text><text x="180" y="162" font-size="9.5" font-weight="500">fix failing test</text></g>
+                                <g class="ag-node" id="ag-plan"><circle cx="180" cy="48" r="34"></circle><text x="180" y="53">Plan</text></g>
+                                <g class="ag-node" id="ag-act"><circle cx="282" cy="150" r="34"></circle><text x="282" y="155">Act</text></g>
+                                <g class="ag-node" id="ag-observe"><circle cx="180" cy="252" r="34"></circle><text x="180" y="257" font-size="12">Observe</text></g>
+                                <g class="ag-node" id="ag-adjust"><circle cx="78" cy="150" r="34"></circle><text x="78" y="155" font-size="12">Adjust</text></g>
+                            </svg>
+                            <div class="controls">
+                                <button class="btn-sm hot" type="button" id="ag-next">Next step</button>
+                                <button class="btn-sm" type="button" id="ag-play">Auto-play</button>
+                                <button class="btn-sm" type="button" id="ag-reset">Reset</button>
+                            </div>
+                            <p class="narr" id="ag-narr" role="status" aria-live="polite">Press <strong>Next step</strong> to walk one turn of the loop for the goal "fix a failing test".</p>
+                        </div>
+                    </div>
+
+                    <p class="viz-title">What an agent can reach</p>
+                    <div class="tools"><span class="tool">Repo &amp; files</span><span class="tool">Terminal &amp; build</span><span class="tool">Tests</span><span class="tool">Tools via MCP</span><span class="tool human">&#10003; Human checkpoint</span></div>
+                    <div class="pill-row"><span class="pill blue">Agent mode: M02</span><span class="pill blue">MCP: M07</span><span class="pill blue">Build agents: M09&ndash;10</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- PART 3 — WHERE WE START                   -->
+        <!-- ══════════════════════════════════════════ -->
+        <h2 class="section-header">Part 3 &middot; Where We Start</h2>
+
+        <!-- Card 10: Pain points -->
+        <div class="concept-card" id="card-10">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-10-body">
+                    <span class="card-title-text"><span class="rung-tag">Workshop</span>Where delivery hurts today &mdash; and the target state</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-10-body">
+                <div class="card-body-inner">
+                    <p class="definition">Walk the lifecycle left to right and locate the friction on your team. Each stage has a typical "today" and an AI-assisted, spec-led "target".</p>
+
+                    <div class="tabs stages" role="tablist" aria-label="SDLC stages">
+                        <button class="tab-btn" type="button" role="tab" id="tab-btn-s1" aria-selected="true" aria-controls="tab-s1">1 Requirements</button>
+                        <button class="tab-btn" type="button" role="tab" id="tab-btn-s2" aria-selected="false" aria-controls="tab-s2">2 Design &amp; Architecture</button>
+                        <button class="tab-btn" type="button" role="tab" id="tab-btn-s3" aria-selected="false" aria-controls="tab-s3">3 Implementation</button>
+                        <button class="tab-btn" type="button" role="tab" id="tab-btn-s4" aria-selected="false" aria-controls="tab-s4">4 Testing</button>
+                        <button class="tab-btn" type="button" role="tab" id="tab-btn-s5" aria-selected="false" aria-controls="tab-s5">5 PR Review</button>
+                        <button class="tab-btn" type="button" role="tab" id="tab-btn-s6" aria-selected="false" aria-controls="tab-s6">6 Release &amp; Operate</button>
+                    </div>
+
+                    <div id="tab-s1" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-s1" tabindex="0">
+                        <div class="comparison">
+                            <div class="col con"><h4>&#10007; Today</h4><ul><li>Tickets and prose translate loosely into implementation tasks; prompt-only results vary by person.</li><li>Requirements arrive as tickets and prose.</li></ul></div>
+                            <div class="col pro"><h4>&#10003; Target</h4><ul><li>Spec with acceptance criteria drives plan &amp; tasks.</li></ul></div>
+                        </div>
+                    </div>
+                    <div id="tab-s2" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-s2" tabindex="0" hidden>
+                        <div class="comparison">
+                            <div class="col con"><h4>&#10007; Today</h4><ul><li>In brownfield code, AI-suggested changes can bypass existing patterns, contracts and extension points.</li></ul></div>
+                            <div class="col pro"><h4>&#10003; Target</h4><ul><li>Brownfield lane: understand the repo, analyse impact, preserve patterns.</li></ul></div>
+                        </div>
+                    </div>
+                    <div id="tab-s3" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-s3" tabindex="0" hidden>
+                        <div class="comparison">
+                            <div class="col con"><h4>&#10007; Today</h4><ul><li>Repetitive coding, boilerplate and docs slow delivery; context is assembled ad hoc each time.</li><li>Each engineer prompts ad hoc, from scratch.</li></ul></div>
+                            <div class="col pro"><h4>&#10003; Target</h4><ul><li>Shared instructions, skills and engineered context.</li></ul></div>
+                        </div>
+                    </div>
+                    <div id="tab-s4" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-s4" tabindex="0" hidden>
+                        <div class="comparison">
+                            <div class="col con"><h4>&#10007; Today</h4><ul><li>Test creation is manual and inconsistent; hard to show acceptance criteria are actually covered.</li><li>Tests written manually after the code.</li></ul></div>
+                            <div class="col pro"><h4>&#10003; Target</h4><ul><li>Test strategy derived from the spec; mocks &amp; stubs.</li></ul></div>
+                        </div>
+                    </div>
+                    <div id="tab-s5" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-s5" tabindex="0" hidden>
+                        <div class="comparison">
+                            <div class="col con"><h4>&#10007; Today</h4><ul><li>Review bottlenecks; spec compliance and regression risk are checked by eye, if at all.</li><li>PRs wait in a review queue.</li></ul></div>
+                            <div class="col pro"><h4>&#10003; Target</h4><ul><li>AI review + LLM-as-Judge, then human approval.</li></ul></div>
+                        </div>
+                    </div>
+                    <div id="tab-s6" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-s6" tabindex="0" hidden>
+                        <div class="comparison">
+                            <div class="col con"><h4>&#10007; Today</h4><ul><li>Little visibility into AI usage, quality, failure patterns, token spend or ROI.</li><li>AI usage and token cost are invisible.</li></ul></div>
+                            <div class="col pro"><h4>&#10003; Target</h4><ul><li>Traced usage; cost per accepted output tracked.</li></ul></div>
+                        </div>
+                    </div>
+
+                    <p class="viz-title">The 10-minute workshop</p>
+                    <div class="flow">
+                        <div class="flow-step"><div class="step-label">4 min</div><div class="step-name">1 &middot; Map today</div></div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step"><div class="step-label">4 min</div><div class="step-name">2 &middot; Sketch the target</div></div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step accent"><div class="step-label">2 min</div><div class="step-name">3 &middot; Pick one measure to baseline</div></div>
+                    </div>
+                    <div class="callout"><strong>Ask the room:</strong> which stage costs your team the most time per sprint? Where has AI already helped &mdash; and where has it created rework?</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 11: Baselines -->
+        <div class="concept-card" id="card-11">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-11-body">
+                    <span class="card-title-text"><span class="rung-tag top">Baseline</span>Six measures we'll prove movement against</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-11-body">
+                <div class="card-body-inner">
+                    <p class="definition">Capture today's number now &mdash; the capstone and the ROI model compare against it. Fill in what you know; the counter only tracks how many you've captured.</p>
+
+                    <div class="flow">
+                        <div class="flow-step accent"><div class="step-label">Module 01</div><div class="step-name">Capture baseline</div></div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step"><div class="step-label">Modules 02&ndash;10</div><div class="step-name">Apply the practices</div></div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step"><div class="step-label">Modules 11&ndash;12</div><div class="step-name">ROI model &amp; capstone compare</div></div>
+                    </div>
+
+                    <div class="bgrid">
+                        <div class="bcard"><h4>Implementation cycle time</h4><p class="bline"><b>Measure</b> Ticket-ready &rarr; merged, for a representative feature</p><p class="bline"><b>Source</b> Issue tracker &amp; GitHub timestamps</p><label class="field-label" for="bl-1">Baseline today</label><input class="field" id="bl-1" type="text" data-baseline></div>
+                        <div class="bcard"><h4>Quality &amp; regression risk</h4><p class="bline"><b>Measure</b> Defects and regressions escaping to later stages</p><p class="bline"><b>Source</b> Bug tracker, CI failure history</p><label class="field-label" for="bl-2">Baseline today</label><input class="field" id="bl-2" type="text" data-baseline></div>
+                        <div class="bcard"><h4>PR review time</h4><p class="bline"><b>Measure</b> PR opened &rarr; approved; review rounds per PR</p><p class="bline"><b>Source</b> GitHub pull-request data</p><label class="field-label" for="bl-3">Baseline today</label><input class="field" id="bl-3" type="text" data-baseline></div>
+                        <div class="bcard"><h4>Testing effort</h4><p class="bline"><b>Measure</b> Hours to write/update tests per feature; criteria covered</p><p class="bline"><b>Source</b> Team estimate + coverage report</p><label class="field-label" for="bl-4">Baseline today</label><input class="field" id="bl-4" type="text" data-baseline></div>
+                        <div class="bcard"><h4>Token usage</h4><p class="bline"><b>Measure</b> Tokens per task and per accepted change</p><p class="bline"><b>Source</b> Copilot usage data; Agent Prism (M11)</p><label class="field-label" for="bl-5">Baseline today</label><input class="field" id="bl-5" type="text" data-baseline></div>
+                        <div class="bcard"><h4>AI cost</h4><p class="bline"><b>Measure</b> Cost per accepted, production-quality output</p><p class="bline"><b>Source</b> Usage &amp; billing data; ROI model (M11)</p><label class="field-label" for="bl-6">Baseline today</label><input class="field" id="bl-6" type="text" data-baseline></div>
+                    </div>
+                    <p class="readout" id="bl-readout" role="status" aria-live="polite">Baselines captured: <strong>0</strong> of 6</p>
+                    <p class="note">Nothing you type here is saved or sent anywhere &mdash; copy it into your workflow canvas.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- STATS — every number comes from the deck  -->
+        <!-- ══════════════════════════════════════════ -->
+        <h2 class="section-header">By the Numbers</h2>
+
+        <div class="stats-row">
+            <div class="stat-card"><div class="stat-value">12</div><div class="stat-label">modules in the programme journey</div><div class="stat-source">Deck slide 3</div></div>
+            <div class="stat-card"><div class="stat-value">7</div><div class="stat-label">rungs on the concept ladder, GenAI &rarr; Agent</div><div class="stat-source">Deck slide 6</div></div>
+            <div class="stat-card"><div class="stat-value">&asymp; 4</div><div class="stat-label">characters per token (rule of thumb, English prose)</div><div class="stat-source">Deck slide 9</div></div>
+            <div class="stat-card"><div class="stat-value">6</div><div class="stat-label">engineering problems the programme solves</div><div class="stat-source">Deck slide 4</div></div>
+            <div class="stat-card"><div class="stat-value">6</div><div class="stat-label">baseline measures captured today</div><div class="stat-source">Deck slide 16</div></div>
+        </div>
+
+        <p class="viz-title">How the 60 minutes are spent (minutes per move)</p>
+        <div class="agenda" role="img" aria-label="Agenda bar: 8, 7, 12, 13, 10 and 10 minutes, totalling 60.">
+            <span class="a8">8</span><span class="a7">7</span><span class="a12">12</span><span class="a13">13</span><span class="a10">10</span><span class="a10">10</span>
+        </div>
+        <ol class="agenda-list">
+            <li><b>8 min</b> &middot; Programme objectives &amp; journey</li>
+            <li><b>7 min</b> &middot; The AI Champion role</li>
+            <li><b>12 min</b> &middot; GenAI &amp; LLM foundations</li>
+            <li><b>13 min</b> &middot; Tokens, context, prompts &amp; agents</li>
+            <li><b>10 min</b> &middot; Current-state pain points</li>
+            <li><b>10 min</b> &middot; Success measures &amp; baseline</li>
+        </ol>
+        <p class="note">Source: deck slide 2.</p>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- OUTCOMES                                  -->
+        <!-- ══════════════════════════════════════════ -->
+        <h2 class="section-header">Outcomes &amp; What's Next</h2>
+        <p class="lead">What should be true as you leave this hour. Tick each one you can honestly say yes to.</p>
+        <ul class="checklist" id="outcomes">
+            <li><label><input type="checkbox"> Programme objectives, the 12-module journey and the AI Champion role are clear</label></li>
+            <li><label><input type="checkbox"> Prompt anatomy, context engineering and the agent loop are linked to the modules that deepen them</label></li>
+            <li><label><input type="checkbox"> GenAI, LLMs and next-token prediction recapped as a shared vocabulary</label></li>
+            <li><label><input type="checkbox"> Current-state pain points mapped against a target-state workflow</label></li>
+            <li><label><input type="checkbox"> Tokens, the context window and temperature understood as engineering constraints</label></li>
+            <li><label><input type="checkbox"> Six baseline measures recorded: cycle time, quality, PR review, testing, tokens, cost</label></li>
+        </ul>
+        <p class="readout" id="outcome-readout" role="status" aria-live="polite">0 of 6 outcomes ticked</p>
+        <div class="next-box">
+            <h4>Next: Module 02 &mdash; GitHub Copilot Recap &amp; Advanced Features &middot; 2.5 hours</h4>
+            <p>A quick recap of core Copilot, then hands-on power-user work: custom instructions, custom agents, reusable skills, advanced prompting and agent-mode workflows.</p>
+        </div>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- SELF-CHECK QUIZ — 5 QUESTIONS             -->
+        <!-- ══════════════════════════════════════════ -->
+        <div class="quiz-section">
+            <h2 class="section-header">Self-Check Quiz</h2>
+
+            <div class="quiz-header">
+                <p>Test your understanding — 5 questions, 70% to pass.</p>
+                <div class="quiz-progress" id="quiz-progress" aria-hidden="true">
+                    <div class="quiz-dot" data-q="1"></div>
+                    <div class="quiz-dot" data-q="2"></div>
+                    <div class="quiz-dot" data-q="3"></div>
+                    <div class="quiz-dot" data-q="4"></div>
+                    <div class="quiz-dot" data-q="5"></div>
+                </div>
+                <div class="quiz-stats" id="quiz-stats" role="status" aria-live="polite"></div>
+            </div>
+
+            <form id="quiz-form">
+                <div id="quiz-container"></div>
+                <p class="quiz-notice" id="quiz-notice" role="alert" hidden></p>
+                <div class="quiz-actions">
+                    <button class="btn btn-primary" type="submit" id="submit-btn">Submit Answers</button>
+                    <button class="btn btn-secondary" type="button" id="reset-btn">Reset</button>
+                </div>
+            </form>
+        </div>
+
+        <p class="source-note">Source: <code>presentations/Module01_Course_Objectives_GenAI_LLM_Recap.pdf</code> (NIIT StackRoute | RPS, Honeywell Software Engineering AI Champions Programme). Probabilities, token splits and prompt examples are the deck's illustrative examples.</p>
+    </main>
+
+    <script>
+    (function () {
+        'use strict';
+
+        // ── Concept card toggle ────────────────────
+        // Delegated, so no inline onclick and no globals.
+        document.addEventListener('click', function (e) {
+            const header = e.target.closest('.card-header');
+            if (!header) return;
+            const card = header.closest('.concept-card');
+            const open = card.classList.toggle('open');
+            header.setAttribute('aria-expanded', String(open));
+        });
+
+        // ── Tabs ───────────────────────────────────
+        document.addEventListener('click', function (e) {
+            // closest() rather than e.target: a click landing on markup
+            // inside the button would otherwise be missed.
+            const btn = e.target.closest('.tab-btn');
+            if (!btn) return;
+            const list = btn.closest('[role="tablist"]');
+
+            list.querySelectorAll('.tab-btn').forEach(function (b) {
+                b.setAttribute('aria-selected', 'false');
+                const panel = document.getElementById(b.getAttribute('aria-controls'));
+                if (panel) panel.hidden = true;
+            });
+
+            btn.setAttribute('aria-selected', 'true');
+            const active = document.getElementById(btn.getAttribute('aria-controls'));
+            if (active) active.hidden = false;
+        });
+
+        // Arrow-key navigation between tabs, per the WAI-ARIA tabs pattern.
+        document.addEventListener('keydown', function (e) {
+            const btn = e.target.closest('.tab-btn');
+            if (!btn || (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft')) return;
+            const tabs = Array.from(btn.closest('[role="tablist"]').querySelectorAll('.tab-btn'));
+            const next = tabs[(tabs.indexOf(btn) + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
+            next.focus();
+            next.click();
+        });
+
+        // ── Quiz data ──────────────────────────────
+        // `correct` is a 0-based index into `options`.
+        const quizData = [
+            {
+                        "id": 1,
+                        "text": "A teammate says: \"The model's answer was fluent and confident, so we can merge it.\" Which idea from this module best explains why that is risky?",
+                        "options": [
+                                    "Discriminative models only pick labels, so they can't sound confident",
+                                    "An LLM predicts probable next tokens, so its output is plausible rather than verified and still needs specs, tests and review",
+                                    "Temperature is always set too high, which makes every answer wrong",
+                                    "Output tokens are billed, so longer answers are more likely to be incorrect"
+                        ],
+                        "correct": 1,
+                        "explanation": "Next-token prediction optimises for likely continuations, not verified truth, which is why specs, tests and review sit at the core of the programme. Temperature changes how varied the sampling is, but even a low-temperature answer is still only probable, not checked."
+            },
+            {
+                        "id": 2,
+                        "text": "Each morning you start a fresh chat and the agent ignores your team's FluentValidation convention. Which fix best matches the module's guidance?",
+                        "options": [
+                                    "Raise the temperature so it explores more patterns",
+                                    "Paste the whole repository into every prompt",
+                                    "Put the convention in always-on custom instructions and select only the relevant files for the task",
+                                    "Wait: the model will remember the convention from yesterday's chat"
+                        ],
+                        "correct": 2,
+                        "explanation": "The model is stateless between calls, so everything it needs must be in the window each time, selected and layered rather than dumped in. Pasting the whole repo is the tempting alternative, but it is bloated and costly, and noise dilutes focus. Temperature has nothing to do with missing knowledge."
+            },
+            {
+                        "id": 3,
+                        "text": "You are recording the \"AI cost\" baseline for your team. Which measure does the module recommend?",
+                        "options": [
+                                    "Cost per accepted, production-quality output",
+                                    "Total tokens consumed across the team each month",
+                                    "Number of Copilot suggestions shown per developer",
+                                    "Licence price per seat"
+                        ],
+                        "correct": 0,
+                        "explanation": "Cost only means something when tied to value delivered, so the baseline is cost per accepted, production-quality output. Total tokens is tempting, but it is a different measure (token usage: tokens per task and per accepted change) and says nothing about whether the spend produced anything useful."
+            },
+            {
+                        "id": 4,
+                        "text": "A prompt says only: \"Add validation to ZoneController.UpdateSetpoint.\" The result adds a new NuGet package and changes the public API contract. Which prompt part was most clearly missing?",
+                        "options": [
+                                    "Role",
+                                    "Output format",
+                                    "Examples",
+                                    "Constraints"
+                        ],
+                        "correct": 3,
+                        "explanation": "Constraints (\"setpoint range 10-32 °C, no new packages, don't change the public API contract\") are what fence the model in. Examples is the tempting answer because it shows the house pattern, but showing a pattern does not forbid new packages or contract changes."
+            },
+            {
+                        "id": 5,
+                        "text": "What turns an AI assistant in your IDE into an agent?",
+                        "options": [
+                                    "A larger context window so it can see more of the repository",
+                                    "It takes a goal and loops: plan, act with tools, observe the result, adjust, until done",
+                                    "Running inside the IDE so answers are grounded in your open code",
+                                    "A lower temperature setting for more precise answers"
+                        ],
+                        "correct": 1,
+                        "explanation": "An agent adds tools and a loop toward a goal on top of an LLM, which brings autonomy and the need for guardrails such as human checkpoints. Being grounded in your open code is what an assistant already does, and a bigger window or lower temperature changes neither the tools nor the loop."
+            }
+];
+
+        const PASS_MARK = 70;
+        const answers = {};
+        let submitted = false;
+
+        const form      = document.getElementById('quiz-form');
+        const container = document.getElementById('quiz-container');
+        const stats     = document.getElementById('quiz-stats');
+        const notice    = document.getElementById('quiz-notice');
+        const submitBtn = document.getElementById('submit-btn');
+        const resetBtn  = document.getElementById('reset-btn');
+
+        function esc(value) {
+            return String(value).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+
+        function renderQuiz() {
+            container.innerHTML = quizData.map(function (q, idx) {
+                const opts = q.options.map(function (opt, i) {
+                    return '<label class="option" data-q="' + q.id + '" data-i="' + i + '">' +
+                             '<input type="radio" name="q' + q.id + '" value="' + i + '">' +
+                             '<span class="marker"></span><span>' + esc(opt) + '</span>' +
+                           '</label>';
+                }).join('');
+
+                return '<fieldset class="question-card" data-q="' + q.id + '">' +
+                         '<legend class="question-number">Question ' + (idx + 1) + ' of ' + quizData.length + '</legend>' +
+                         '<p class="question-text">' + esc(q.text) + '</p>' +
+                         '<div class="options">' + opts + '</div>' +
+                         '<p class="feedback" id="fb-' + q.id + '" role="status" aria-live="polite" hidden></p>' +
+                       '</fieldset>';
+            }).join('');
+        }
+
+        container.addEventListener('change', function (e) {
+            if (submitted || e.target.type !== 'radio') return;
+            const label = e.target.closest('.option');
+            const qId = Number(label.dataset.q);
+
+            // Scoped to .option — .question-card and .quiz-dot carry the same
+            // data-q attribute and must not be caught by this query.
+            container.querySelectorAll('.option[data-q="' + qId + '"]')
+                     .forEach(function (el) { el.classList.remove('selected'); });
+
+            label.classList.add('selected');
+            answers[qId] = Number(label.dataset.i);
+            notice.hidden = true;
+            updateProgress();
+        });
+
+        // Before submission this shows the answered count ONLY. A running
+        // score here would let a learner cycle options and read off the
+        // answers without ever submitting.
+        function updateProgress() {
+            const answered = Object.keys(answers).length;
+
+            if (!submitted) {
+                // Only repaint the dots pre-submit. After grading they carry
+                // correct/incorrect, and resetting them here would wipe that.
+                document.querySelectorAll('.quiz-dot').forEach(function (dot) {
+                    dot.className = 'quiz-dot' + (answers[Number(dot.dataset.q)] !== undefined ? ' answered' : '');
+                });
+                stats.innerHTML = '<span>Answered: <strong>' + answered + '</strong>/' + quizData.length + '</span>';
+                return;
+            }
+
+            const correct = calcScore();
+            const pct = Math.round((correct / quizData.length) * 100);
+            stats.innerHTML =
+                '<span>Correct: <strong>' + correct + '</strong>/' + quizData.length + '</span>' +
+                '<span>Score: <strong>' + pct + '%</strong></span>' +
+                '<span>' + (pct >= PASS_MARK ? 'Passed' : 'Below ' + PASS_MARK + '% — review and retry') + '</span>';
+        }
+
+        function calcScore() {
+            return quizData.filter(function (q) { return answers[q.id] === q.correct; }).length;
+        }
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            // Inline message rather than alert(): alert() is suppressed in
+            // some embedded contexts and cannot be styled or announced.
+            const missing = quizData.find(function (q) { return answers[q.id] === undefined; });
+            if (missing) {
+                notice.textContent = 'Answer all ' + quizData.length + ' questions before submitting.';
+                notice.hidden = false;
+                const card = container.querySelector('.question-card[data-q="' + missing.id + '"]');
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const input = card.querySelector('input');
+                if (input) input.focus();
+                return;
+            }
+
+            submitted = true;
+            notice.hidden = true;
+            submitBtn.disabled = true;
+
+            quizData.forEach(function (q) {
+                const card = container.querySelector('.question-card[data-q="' + q.id + '"]');
+                const wasCorrect = answers[q.id] === q.correct;
+
+                card.querySelectorAll('.option').forEach(function (opt) {
+                    const i = Number(opt.dataset.i);
+                    const input = opt.querySelector('input');
+                    if (input) input.disabled = true;
+                    opt.classList.add('locked');
+                    if (i === q.correct) opt.classList.add('correct');
+                    else if (answers[q.id] === i) opt.classList.add('incorrect');
+                });
+
+                const fb = document.getElementById('fb-' + q.id);
+                fb.textContent = (wasCorrect ? '✓ Correct. ' : '✗ Incorrect. ') + q.explanation;
+                fb.className = 'feedback ' + (wasCorrect ? 'correct' : 'incorrect');
+                fb.hidden = false;
+                card.classList.add(wasCorrect ? 'correct' : 'incorrect');
+
+                const dot = document.querySelector('.quiz-dot[data-q="' + q.id + '"]');
+                dot.className = 'quiz-dot ' + (wasCorrect ? 'correct' : 'incorrect');
+            });
+
+            updateProgress();
+        });
+
+        resetBtn.addEventListener('click', function () {
+            Object.keys(answers).forEach(function (k) { delete answers[k]; });
+            submitted = false;
+            submitBtn.disabled = false;
+            notice.hidden = true;
+            renderQuiz();
+            updateProgress();
+        });
+
+        // ── Init ───────────────────────────────────
+        renderQuiz();
+        updateProgress();
+    })();
+    </script>
+
+    <script>
+    /* Module 01 interactive visuals. The template script above (accordion, tabs,
+       quiz) is untouched; this block only adds the per-concept widgets. */
+    (function () {
+        'use strict';
+
+        function $(sel, root) { return (root || document).querySelector(sel); }
+        function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+        var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        // ── Ladder: jump to (and open) a concept card ─────────
+        document.addEventListener('click', function (e) {
+            var rung = e.target.closest('[data-open-card]');
+            if (!rung) return;
+            var card = document.getElementById(rung.getAttribute('data-open-card'));
+            if (!card) return;
+            card.classList.add('open');
+            var header = card.querySelector('.card-header');
+            if (header) header.setAttribute('aria-expanded', 'true');
+            card.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+            if (header) header.focus({ preventScroll: true });
+        });
+
+        // ── Card 1: problems -> modules ───────────────────────
+        (function () {
+            var chips = $$('.pchip');
+            var nodes = $$('.jnode');
+            var readout = $('#journey-readout');
+            if (!chips.length) return;
+            var idle = 'Select a problem to light up the modules that own it.';
+
+            chips.forEach(function (chip) {
+                chip.addEventListener('click', function () {
+                    var wasOn = chip.getAttribute('aria-pressed') === 'true';
+                    chips.forEach(function (c) { c.setAttribute('aria-pressed', 'false'); });
+                    if (wasOn) {
+                        nodes.forEach(function (n) { n.classList.remove('lit', 'dim'); });
+                        readout.textContent = idle;
+                        return;
+                    }
+                    chip.setAttribute('aria-pressed', 'true');
+                    var mods = chip.getAttribute('data-mods').split(',').map(Number);
+                    nodes.forEach(function (n) {
+                        var on = mods.indexOf(Number(n.getAttribute('data-m'))) > -1;
+                        n.classList.toggle('lit', on);
+                        n.classList.toggle('dim', !on);
+                    });
+                    readout.innerHTML = '';
+                    var strong = document.createElement('strong');
+                    strong.textContent = chip.getAttribute('data-title');
+                    readout.appendChild(strong);
+                    readout.appendChild(document.createTextNode(' is addressed in ' + chip.getAttribute('data-label').replace(/&ndash;/g, '–') + '.'));
+                });
+            });
+        })();
+
+        // ── Card 4: next-token probabilities + temperature ─────
+        (function () {
+            var bars = $$('#ntp-bars .pbar');
+            if (!bars.length) return;
+            var tokens = ['int', 'double', 'Zone', 'string', '…'];
+            var labels = ['int', 'double', 'Zone', 'string', 'other'];
+            var base = [0.48, 0.27, 0.14, 0.06, 0.05];
+            var temp = $('#ntp-temp');
+            var tempOut = $('#ntp-temp-out');
+            var slot = $('#ntp-slot');
+            var tally = $('#ntp-tally');
+            var counts = [0, 0, 0, 0, 0];
+            var dist = base.slice();
+
+            function recompute() {
+                var T = Number(temp.value);
+                var w = base.map(function (p) { return Math.pow(p, 1 / T); });
+                var sum = w.reduce(function (a, b) { return a + b; }, 0);
+                dist = w.map(function (x) { return x / sum; });
+                var top = dist.indexOf(Math.max.apply(null, dist));
+                bars.forEach(function (bar, i) {
+                    bar.querySelector('.fill').style.width = (dist[i] * 100).toFixed(1) + '%';
+                    bar.querySelector('.pct').textContent = Math.round(dist[i] * 100) + '%';
+                    bar.classList.toggle('top', i === top);
+                });
+                tempOut.textContent = T.toFixed(1);
+            }
+            function show(i) {
+                slot.textContent = tokens[i];
+                slot.className = 'tok picked';
+            }
+            function draw() {
+                var r = Math.random(), acc = 0;
+                for (var i = 0; i < dist.length; i++) { acc += dist[i]; if (r < acc) return i; }
+                return dist.length - 1;
+            }
+            function renderTally() {
+                var total = counts.reduce(function (a, b) { return a + b; }, 0);
+                if (!total) { tally.textContent = ''; return; }
+                tally.textContent = total + ' sample' + (total === 1 ? '' : 's') + ': ' +
+                    labels.map(function (l, i) { return l + ' ×' + counts[i]; }).join(' · ');
+            }
+
+            bars.forEach(function (bar) {
+                bar.addEventListener('click', function () {
+                    var i = Number(bar.getAttribute('data-i'));
+                    show(i);
+                    tally.textContent = 'Picked “' + labels[i] + '”. Now it joins the window and the model predicts the next token again.';
+                });
+            });
+            temp.addEventListener('input', recompute);
+            $('#ntp-sample').addEventListener('click', function () {
+                var i = draw(); counts[i]++; show(i); renderTally();
+            });
+            $('#ntp-sample20').addEventListener('click', function () {
+                var last = 0;
+                for (var n = 0; n < 20; n++) { last = draw(); counts[last]++; }
+                show(last); renderTally();
+            });
+            $('#ntp-reset').addEventListener('click', function () {
+                counts = [0, 0, 0, 0, 0];
+                slot.textContent = '?'; slot.className = 'tok q';
+                temp.value = '1'; recompute(); tally.textContent = '';
+            });
+            recompute();
+        })();
+
+        // ── Card 5: rough token maths ─────────────────────────
+        (function () {
+            var input = $('#tk-input');
+            var out = $('#tk-out');
+            if (!input) return;
+            var outVal = $('#tk-out-val');
+            var barIn = $('#tk-bar-in');
+            var barOut = $('#tk-bar-out');
+            var readout = $('#tk-readout');
+
+            function update() {
+                var inTok = Math.ceil(input.value.length / 4);
+                var outTok = Number(out.value);
+                var total = inTok + outTok;
+                outVal.textContent = outTok;
+                barIn.style.width = total ? (inTok / total * 100) + '%' : '0';
+                barOut.style.width = total ? (outTok / total * 100) + '%' : '0';
+                readout.innerHTML = '';
+                readout.appendChild(document.createTextNode('≈ '));
+                var a = document.createElement('strong'); a.textContent = inTok;
+                readout.appendChild(a);
+                readout.appendChild(document.createTextNode(' input + '));
+                var b = document.createElement('strong'); b.textContent = outTok;
+                readout.appendChild(b);
+                readout.appendChild(document.createTextNode(' output = '));
+                var c = document.createElement('strong'); c.textContent = total;
+                readout.appendChild(c);
+                readout.appendChild(document.createTextNode(' tokens counted against your limits and cost.'));
+            }
+            input.addEventListener('input', update);
+            out.addEventListener('input', update);
+            update();
+        })();
+
+        // ── Card 6: context window budget + stateless calls ───
+        (function () {
+            var files = $('#ctx-files');
+            var hist = $('#ctx-hist');
+            if (!files) return;
+            var AVAIL = 70; // 100 less system (10), task (5) and answer reserve (15)
+            var seg = {
+                files: $('#seg-files'), hist: $('#seg-hist'), free: $('#seg-free')
+            };
+            var over = $('#ctx-over');
+            var readout = $('#ctx-readout');
+
+            function setSeg(el, value, label) {
+                el.style.flexGrow = value;
+                el.style.flexBasis = '0';
+                el.style.display = value > 0 ? '' : 'none';
+                el.textContent = value >= 9 ? label : '';
+            }
+            function update() {
+                var f = Number(files.value), h = Number(hist.value);
+                $('#ctx-files-out').textContent = f;
+                $('#ctx-hist-out').textContent = h;
+                var fFit = Math.min(f, AVAIL);
+                var hFit = Math.min(h, AVAIL - fFit);
+                var free = AVAIL - fFit - hFit;
+                var spill = f + h - AVAIL;
+
+                ['sys', 'task', 'ans'].forEach(function (k) {
+                    var el = $('#seg-' + k);
+                    el.style.flexBasis = '0';
+                    el.style.flexGrow = k === 'sys' ? 10 : (k === 'task' ? 5 : 15);
+                });
+                setSeg(seg.files, fFit, 'Files');
+                setSeg(seg.hist, hFit, 'History');
+                setSeg(seg.free, free, 'Free');
+
+                if (spill > 0) {
+                    over.hidden = false;
+                    over.style.flexGrow = spill;
+                    readout.textContent = '✗ Over budget by ' + spill + ' units: older history & extra files don’t fit, so they are dropped, truncated or summarised — the model never sees them.';
+                } else {
+                    over.hidden = true;
+                    readout.textContent = '✓ Fits: ' + free + ' units of the window are still free.';
+                }
+            }
+            files.addEventListener('input', update);
+            hist.addEventListener('input', update);
+            update();
+
+            var resend = $('#call2-resend');
+            var win2 = $('#call2-win');
+            var ans2 = $('#call2-answer');
+            resend.addEventListener('change', function () {
+                win2.classList.toggle('empty', !resend.checked);
+                ans2.className = 'answer ' + (resend.checked ? 'good' : 'bad');
+                ans2.textContent = resend.checked
+                    ? '✓ Answer follows your house patterns — because you put the context back in.'
+                    : '✗ Generic answer: nothing from Call 1 is in this window.';
+            });
+        })();
+
+        // ── Card 7: prompt anatomy ────────────────────────────
+        (function () {
+            var toggles = $$('#part-toggles input');
+            if (!toggles.length) return;
+            var risk = {
+                role: 'No role: the model has no stance, so expect generic answers rather than a senior C#/.NET engineer’s.',
+                task: 'No task: the model has nothing specific to do.',
+                ctx: 'No context: it can’t see that validators live in /Validation and use FluentValidation, so it guesses.',
+                con: 'No constraints: nothing stops it adding packages, using the wrong range or changing the public API contract.',
+                ex: 'No examples: it won’t know to follow the pattern in AlarmThresholdValidator.cs.',
+                out: 'No output format: you won’t know whether you get a diff, prose or tests for valid, boundary and invalid values.'
+            };
+            var meter = $$('#prompt-meter i');
+            var count = $('#prompt-count');
+            var list = $('#prompt-risks');
+
+            function update() {
+                var on = 0;
+                list.innerHTML = '';
+                toggles.forEach(function (t) {
+                    var key = t.getAttribute('data-part');
+                    var line = $('.pline[data-line="' + key + '"]');
+                    line.classList.toggle('off', !t.checked);
+                    if (t.checked) { on++; return; }
+                    var li = document.createElement('li');
+                    li.textContent = risk[key];
+                    list.appendChild(li);
+                });
+                meter.forEach(function (m, i) { m.classList.toggle('on', i < on); });
+                count.textContent = on + ' of 6 parts included';
+                if (on === 6) {
+                    var done = document.createElement('li');
+                    done.textContent = 'Full anatomy: a new teammate could do this task from the prompt alone — and so can the model.';
+                    done.className = 'ok';
+                    list.appendChild(done);
+                }
+            }
+            toggles.forEach(function (t) { t.addEventListener('change', update); });
+            update();
+        })();
+
+        // ── Card 9: the agent loop ────────────────────────────
+        (function () {
+            var next = $('#ag-next');
+            if (!next) return;
+            var steps = [
+                { id: 'ag-plan', text: '<strong>Plan</strong> — the agent reads the failing test and decides which files to open and what to try first.' },
+                { id: 'ag-act', text: '<strong>Act</strong> — it uses tools: edits files, runs the build, runs the tests (repo &amp; files, terminal, MCP tools).' },
+                { id: 'ag-observe', text: '<strong>Observe</strong> — it reads the real output: did the build pass? Is the test still red?' },
+                { id: 'ag-adjust', text: '<strong>Adjust</strong> — still failing? Revise the plan with what it learned and loop again. Passing? Hand off to a human checkpoint.' }
+            ];
+            var narr = $('#ag-narr');
+            var play = $('#ag-play');
+            var idx = -1, timer = null, round = 1;
+
+            function render() {
+                steps.forEach(function (s, i) { $('#' + s.id).classList.toggle('active', i === idx); });
+                if (idx < 0) {
+                    narr.innerHTML = 'Press <strong>Next step</strong> to walk one turn of the loop for the goal “fix a failing test”.';
+                } else {
+                    narr.innerHTML = 'Round ' + round + ' · step ' + (idx + 1) + ' of 4. ' + steps[idx].text;
+                }
+            }
+            function advance() {
+                idx = (idx + 1) % steps.length;
+                if (idx === 0 && narr.dataset.started) round++;
+                narr.dataset.started = '1';
+                render();
+            }
+            function stop() {
+                if (timer) { clearInterval(timer); timer = null; }
+                play.textContent = 'Auto-play';
+            }
+            next.addEventListener('click', advance);
+            play.addEventListener('click', function () {
+                if (timer) { stop(); return; }
+                advance();
+                timer = setInterval(advance, 2600);
+                play.textContent = 'Pause';
+            });
+            if (reduceMotion) {
+                play.disabled = true;
+                play.title = 'Auto-play is off because your system prefers reduced motion';
+            }
+            $('#ag-reset').addEventListener('click', function () {
+                stop(); idx = -1; round = 1; delete narr.dataset.started; render();
+            });
+            render();
+        })();
+
+        // ── Card 11 + outcomes: simple counters ───────────────
+        (function () {
+            var fields = $$('[data-baseline]');
+            var out = $('#bl-readout');
+            function countBaselines() {
+                var n = fields.filter(function (f) { return f.value.trim() !== ''; }).length;
+                out.innerHTML = '';
+                out.appendChild(document.createTextNode('Baselines captured: '));
+                var s = document.createElement('strong'); s.textContent = n;
+                out.appendChild(s);
+                out.appendChild(document.createTextNode(' of ' + fields.length));
+            }
+            fields.forEach(function (f) { f.addEventListener('input', countBaselines); });
+
+            var ticks = $$('#outcomes input');
+            var oout = $('#outcome-readout');
+            ticks.forEach(function (t) {
+                t.addEventListener('change', function () {
+                    var n = ticks.filter(function (x) { return x.checked; }).length;
+                    oout.textContent = n + ' of ' + ticks.length + ' outcomes ticked' + (n === ticks.length ? ' — ready for Module 02.' : '');
+                });
+            });
+        })();
+    })();
+    </script>
+</body>
+</html>
