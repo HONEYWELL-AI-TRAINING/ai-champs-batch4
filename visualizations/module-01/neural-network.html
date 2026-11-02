@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="An interactive, single-page visual explainer of how a neural network works: neurons, layers, gradient descent, backpropagation, a live training playground, and the bridge to LLMs.">
+<title>How a Neural Network Works — Module 01 Visual Explainer</title>
+<script>document.documentElement.classList.add('js');</script>
+<style>
+/* ───────────── Tokens (match visualizations/module-01/index.html) ───────────── */
+:root{
+  --bg:#0f172a; --bg-deep:#0a1020; --surface:#1e293b; --surface-2:#243247; --border:#334155;
+  --text:#e2e8f0; --muted:#94a3b8; --primary:#3498db;
+  --pos:#38bdf8;   /* positive weight / class 1 / forward values */
+  --neg:#fb923c;   /* negative weight / class 0 */
+  --amber:#fbbf24; /* gradients / blame */
+  --violet:#a78bfa; --good:#22c55e; --bad:#ef4444;
+  --mono:ui-monospace,"JetBrains Mono","Fira Code",Menlo,Consolas,monospace;
+  --sans:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:64px}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+svg text{font-family:var(--sans)}
+:focus-visible{outline:2px solid var(--pos);outline-offset:2px}
+.skip{position:absolute;left:-999px;top:8px;background:var(--pos);color:#04283a;padding:8px 14px;border-radius:8px;z-index:100;font-weight:600;text-decoration:none}
+.skip:focus{left:8px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+a{color:var(--pos)}
+
+/* ───────────── Hero ───────────── */
+.hero{position:relative;overflow:hidden;padding:64px 0 56px;border-bottom:1px solid var(--border);
+  background:radial-gradient(1100px 480px at 75% -10%,rgba(52,152,219,.22),transparent 60%),radial-gradient(800px 420px at 0% 115%,rgba(167,139,250,.16),transparent 60%),var(--bg-deep)}
+.hero canvas{position:absolute;inset:0;width:100%;height:100%;opacity:.8}
+.hero::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,rgba(10,16,32,.94) 0%,rgba(10,16,32,.78) 45%,rgba(10,16,32,.15) 100%)}
+.hero-inner{position:relative;z-index:2}
+.back{display:inline-block;color:var(--muted);font-size:.88rem;text-decoration:none;margin-bottom:22px}
+.back:hover{color:var(--text)}
+.badge{display:inline-block;background:rgba(52,152,219,.18);border:1px solid rgba(56,189,248,.45);color:var(--pos);padding:4px 12px;border-radius:999px;font:600 .78rem/1.4 var(--mono);letter-spacing:.06em;margin-left:10px}
+.hero h1{font-size:clamp(2.2rem,5.6vw,3.9rem);line-height:1.08;letter-spacing:-.025em;font-weight:800;margin:16px 0 14px;max-width:14ch}
+.grad{background:linear-gradient(90deg,var(--pos),var(--violet) 55%,var(--neg));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .sub{color:#b6c3d6;font-size:clamp(1rem,2vw,1.2rem);max-width:640px}
+.hero .sub strong{color:var(--text)}
+.hero-cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
+.chips{display:flex;flex-wrap:wrap;gap:10px;list-style:none;margin-top:30px}
+.chips li{background:rgba(30,41,59,.85);border:1px solid var(--border);border-radius:999px;padding:7px 14px;font-size:.88rem}
+.chips b{color:var(--pos);font-family:var(--mono);margin-right:6px}
+.fine{color:var(--muted);font-size:.82rem;margin-top:18px}
+
+/* ───────────── Nav ───────────── */
+.topnav{position:sticky;top:0;z-index:50;background:rgba(15,23,42,.86);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.topnav ul{display:flex;gap:4px;list-style:none;overflow-x:auto;max-width:1120px;margin:0 auto;padding:8px 20px;scrollbar-width:none}
+.topnav ul::-webkit-scrollbar{display:none}
+.topnav a{display:block;white-space:nowrap;color:var(--muted);text-decoration:none;font-size:.85rem;padding:6px 12px;border-radius:999px;border:1px solid transparent}
+.topnav a:hover{color:var(--text);background:var(--surface)}
+.topnav a[aria-current="true"]{color:var(--text);background:var(--surface-2);border-color:var(--border)}
+
+/* ───────────── Sections ───────────── */
+section.block{padding:72px 0;border-bottom:1px solid rgba(51,65,85,.5)}
+.eyebrow{display:inline-block;font:600 .78rem/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--pos);margin-bottom:12px}
+h2{font-size:clamp(1.6rem,3.4vw,2.3rem);line-height:1.2;letter-spacing:-.01em;margin-bottom:12px}
+h3{font-size:1.05rem;margin-bottom:8px}
+.lede{color:var(--muted);max-width:780px;font-size:1.05rem;margin-bottom:28px}
+.lede strong{color:var(--text)}
+.mini{color:var(--muted);font-size:.88rem}
+.mini strong{color:var(--text)}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;min-width:0}
+.grid-2{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:900px){.grid-2{grid-template-columns:minmax(0,1fr)}}
+.callout{border-left:3px solid var(--violet);background:rgba(167,139,250,.08);padding:12px 16px;border-radius:0 10px 10px 0;margin-top:20px;font-size:.95rem;max-width:880px}
+.callout strong{color:var(--violet)}
+.btn-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+
+/* reveal on scroll (content stays visible without JS / with reduced motion) */
+.js .reveal{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
+.js .reveal.in{opacity:1;transform:none}
+
+/* ───────────── Controls ───────────── */
+.btn{font:600 .88rem var(--sans);color:var(--text);background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:9px 14px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:background .15s,border-color .15s,transform .15s}
+.btn:hover{background:#2f3f58;border-color:#4a5d78}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#06202f}
+.btn.primary:hover{background:#4aa6e6}
+.btn[aria-pressed="true"]{border-color:var(--pos);box-shadow:inset 0 0 0 1px var(--pos)}
+.ctl-group{margin-top:14px}
+.ctl-group:first-child{margin-top:0}
+.ctl-group>h3,.ctl-title{font-size:.76rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:6px;font-weight:600}
+.ctl{display:grid;grid-template-columns:104px minmax(0,1fr) 50px;gap:10px;align-items:center;margin:4px 0;font-size:.88rem}
+.ctl label{color:var(--muted)}
+.ctl output{font-family:var(--mono);text-align:right;font-size:.84rem}
+input[type=range]{width:100%;accent-color:var(--pos);height:26px;cursor:pointer}
+.seg{position:relative;display:inline-flex;flex-wrap:wrap;gap:4px;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:4px}
+.seg input{position:absolute;opacity:0;width:1px;height:1px}
+.seg label{cursor:pointer;padding:6px 12px;border-radius:8px;font-size:.84rem;color:var(--muted);user-select:none}
+.seg label:hover{color:var(--text)}
+.seg input:checked+label{background:var(--surface-2);color:var(--text);box-shadow:inset 0 0 0 1px var(--pos)}
+.seg input:focus-visible+label{outline:2px solid var(--pos);outline-offset:1px}
+
+/* ───────────── Diagrams ───────────── */
+.scrollx{overflow-x:auto;border-radius:14px;-webkit-overflow-scrolling:touch}
+.diagram{display:block;width:100%;height:auto;background:var(--bg);border:1px solid var(--border);border-radius:14px}
+@media (max-width:700px){.d-neuron{min-width:560px}.d-layers{min-width:660px}.d-gd{min-width:520px}}
+.grid-2.wide{grid-template-columns:minmax(0,2.1fr) minmax(0,1fr)}
+@media (max-width:900px){.grid-2.wide{grid-template-columns:minmax(0,1fr)}}
+.diagram .lbl{fill:var(--muted);font-size:12px}
+.diagram .val{fill:#fff;font:600 12px var(--mono);paint-order:stroke;stroke:#0f172a;stroke-width:3px;stroke-linejoin:round}
+.diagram .wlbl{fill:var(--text);font:600 11px var(--mono);paint-order:stroke;stroke:#0f172a;stroke-width:4px;stroke-linejoin:round}
+.diagram .node{cursor:pointer}
+.diagram .node circle{stroke:#475569;stroke-width:1.5}
+.diagram .node:hover circle{stroke:#cbd5e1}
+.diagram .node:focus-visible{outline:none}
+.diagram .node:focus-visible circle{stroke:#fff;stroke-width:3.5}
+.diagram .node.sel circle{stroke:var(--amber);stroke-width:3.5}
+.flow{stroke-dasharray:3 13;animation:flow 1.1s linear infinite;fill:none;stroke-linecap:round}
+@keyframes flow{to{stroke-dashoffset:-32}}
+.hint{display:none;color:var(--muted);font-size:.78rem;margin-top:6px}
+@media (max-width:640px){.hint{display:block}}
+.readout{font-family:var(--mono);font-size:.84rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-top:14px;line-height:1.85;overflow-wrap:anywhere}
+.readout .p{color:var(--pos)}.readout .n{color:var(--neg)}.readout .a{color:var(--amber)}.readout b{color:#fff}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:10px;margin-top:14px}
+.tile-stat{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:8px 12px}
+.tile-stat span{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.tile-stat b{font:600 1.05rem var(--mono)}
+
+/* activation gallery */
+.act-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:22px}
+.act-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px}
+.act-card svg{display:block;width:100%;height:70px;margin-bottom:8px}
+.act-card h3{font-size:.95rem;margin-bottom:2px}
+.act-card code{font:.78rem var(--mono);color:var(--pos)}
+.act-card p{color:var(--muted);font-size:.84rem;margin-top:6px;line-height:1.5}
+
+/* inspector */
+.inspect h4{font-size:.95rem;margin-bottom:6px}
+.inspect table{width:100%;border-collapse:collapse;font:.8rem var(--mono);margin:8px 0}
+.inspect td{padding:3px 6px;border-bottom:1px solid var(--border);text-align:right}
+.inspect td:first-child{text-align:left;color:var(--muted)}
+.inspect .p{color:var(--pos)}.inspect .n{color:var(--neg)}
+.inspect .sum{font:.84rem var(--mono);line-height:1.7}
+
+/* ───────────── Learning loop ───────────── */
+.loop{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:10px}
+@media (max-width:760px){.loop{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.loop .st{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;animation:lit 8s infinite}
+.loop .st:nth-of-type(1){animation-delay:0s}.loop .st:nth-of-type(2){animation-delay:2s}
+.loop .st:nth-of-type(3){animation-delay:4s}.loop .st:nth-of-type(4){animation-delay:6s}
+.loop .st .num{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--surface-2);font:700 .8rem var(--mono);color:var(--pos);margin-bottom:6px}
+.loop .st h3{font-size:1rem;margin-bottom:2px}
+.loop .st p{color:var(--muted);font-size:.86rem;line-height:1.5}
+@keyframes lit{0%,24%{border-color:var(--pos);box-shadow:0 0 0 1px var(--pos),0 0 26px rgba(56,189,248,.25)}25%,100%{border-color:var(--border);box-shadow:none}}
+.repeat{text-align:center;color:var(--muted);font-size:.86rem;margin-bottom:28px}
+.sub-h{margin:34px 0 8px;font-size:1.3rem}
+
+/* backprop chain */
+.chain{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;margin-top:6px}
+.chain .carr{align-self:center;color:var(--muted);font-size:1.2rem}
+.chain .tile{flex:1 1 150px;min-width:140px;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:12px;font:.82rem var(--mono)}
+.chain .tn{font-weight:700;color:#fff;margin-bottom:6px}
+.chain .param{display:inline-block;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:1px 8px;margin-bottom:6px;color:var(--text)}
+.chain .param.changed{border-color:var(--good)}
+.chain .fwd,.chain .bwd,.chain .lossv{opacity:0;transition:opacity .35s}
+.chain.show-fwd .fwd{opacity:1}.chain.show-loss .lossv{opacity:1}.chain.show-bwd .bwd{opacity:1}
+.chain .fwd{color:var(--pos)}.chain .bwd{color:var(--amber)}.chain .lossv{color:var(--pos)}
+.chain.show-bwd .bwd{animation:popin .45s both;animation-delay:var(--d,0s)}
+@keyframes popin{from{transform:translateX(10px);opacity:0}to{transform:none;opacity:1}}
+.key{display:flex;flex-wrap:wrap;gap:16px;font-size:.82rem;color:var(--muted);margin:10px 0 0}
+.key i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
+.caption{min-height:7.2em;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-top:14px;font-size:.92rem;line-height:1.7}
+.caption code{font:.84rem var(--mono);color:var(--amber)}
+.spark{width:100%;height:56px;display:block;margin-top:8px}
+
+/* ───────────── Playground ───────────── */
+.pg-controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:16px 22px;margin-bottom:18px;align-items:start}
+.pg-main{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:900px){.pg-main{grid-template-columns:minmax(0,1fr)}}
+.pg-main canvas,.pg-bottom canvas{display:block;width:100%;border:1px solid var(--border);border-radius:12px;background:var(--bg)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.78rem;color:var(--muted);margin-top:10px}
+.legend .sw{display:inline-block;width:11px;height:11px;margin-right:6px;vertical-align:-1px}
+.legend .ln{display:inline-block;width:22px;height:0;border-top:3px solid;margin-right:6px;vertical-align:3px}
+.pg-bottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:18px;margin-top:18px;align-items:start}
+@media (max-width:900px){.pg-bottom{grid-template-columns:minmax(0,1fr)}}
+.pg-bottom .tiles{margin-top:0}
+.chal{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:22px}
+.chal .panel{display:flex;flex-direction:column;gap:8px}
+.chal p{color:var(--muted);font-size:.86rem;flex:1}
+.chal h3{font-size:.95rem;margin:0}
+
+/* ───────────── LLM bridge ───────────── */
+.pipe{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;margin-bottom:22px}
+.pipe .step{flex:1 1 150px;min-width:140px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;animation:lit6 12s infinite}
+.pipe .step:nth-of-type(1){animation-delay:0s}.pipe .step:nth-of-type(2){animation-delay:2s}.pipe .step:nth-of-type(3){animation-delay:4s}
+.pipe .step:nth-of-type(4){animation-delay:6s}.pipe .step:nth-of-type(5){animation-delay:8s}.pipe .step:nth-of-type(6){animation-delay:10s}
+@keyframes lit6{0%,16%{border-color:var(--pos)}17%,100%{border-color:var(--border)}}
+.pipe .arr{align-self:center;color:var(--muted)}
+.pipe h3{font-size:.92rem;margin-bottom:4px}
+.pipe .step p{color:var(--muted);font-size:.8rem;line-height:1.45}
+.pipe code{font:.68rem var(--mono);color:var(--amber);display:block;margin-top:6px;overflow-wrap:anywhere}
+.tok{display:inline-block;background:var(--surface-2);border:1px solid var(--border);border-radius:5px;padding:0 5px;margin:2px 2px 0 0;font:.72rem var(--mono);color:var(--text)}
+.bars{display:grid;gap:8px;margin:12px 0}
+.bar-row{display:grid;grid-template-columns:128px minmax(0,1fr) 48px;gap:10px;align-items:center;font-size:.86rem}
+.bar-row .name{font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{height:20px;background:var(--bg);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.bar-fill{height:100%;background:linear-gradient(90deg,#1d6fa5,var(--pos));width:0;transition:width .25s}
+.bar-row.top .bar-fill{background:linear-gradient(90deg,#b45309,var(--amber))}
+.bar-row .pct{font-family:var(--mono);text-align:right}
+.tally{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;font:.8rem var(--mono)}
+.tally span{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:3px 10px}
+.codeline{font:.92rem var(--mono);background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 14px;overflow-wrap:anywhere}
+.codeline .pick{color:var(--amber);font-weight:700}
+.scale{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:520px){.scale{grid-template-columns:1fr}}
+.scale .tile-stat b{font-size:1.3rem;display:block;line-height:1.3}
+.scale .tile-stat small{color:var(--muted);font-size:.78rem}
+.stat-source{font-size:.76rem;color:var(--muted);margin-top:8px}
+.bullets{list-style:none;display:grid;gap:10px;margin-top:14px}
+.bullets li{padding-left:22px;position:relative;font-size:.92rem}
+.bullets li::before{content:"→";position:absolute;left:0;color:var(--pos)}
+.bullets li span{color:var(--muted)}
+
+/* ───────────── Recap ───────────── */
+.ladder{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:24px 0 26px}
+.ladder .rung{background:linear-gradient(180deg,var(--surface-2),var(--surface));border:1px solid var(--border);border-top:3px solid var(--pos);border-radius:14px;padding:16px}
+.ladder .rung:nth-child(2){border-top-color:var(--violet)}.ladder .rung:nth-child(3){border-top-color:var(--amber)}.ladder .rung:nth-child(4){border-top-color:var(--neg)}
+.ladder b{display:block;font-size:1.05rem}
+.ladder span{color:var(--muted);font-size:.88rem}
+.gloss{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.gloss div{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;font-size:.88rem;color:var(--muted)}
+.gloss dt{color:var(--text);font-weight:700;font-size:.92rem}
+footer{padding:36px 0 56px;color:var(--muted);font-size:.86rem}
+footer ul{margin:8px 0 0 18px}
+footer li{margin:4px 0}
+
+/* ───────────── Small utilities (replace inline styles) ───────────── */
+.mt4{margin-top:4px}.mt8{margin-top:8px}.mt10{margin-top:10px}.mt12{margin-top:12px}.mt14{margin-top:14px}
+.btn-row.flush{margin:0 0 12px}.btn-row.span{margin:0;grid-column:1/-1}
+.ln.pos{border-color:var(--pos)}.ln.neg{border-color:var(--neg);border-top-style:dashed}
+.sw.pos{background:var(--pos);border-radius:50%}.sw.neg{background:var(--neg)}
+.key i.k-pos{background:var(--pos)}.key i.k-amber{background:var(--amber)}.key i.k-good{background:var(--good)}
+.caption.short{min-height:3.4em}.ctl-group.lim{max-width:420px}
+.c-pos{color:var(--pos)}.c-neg{color:var(--neg)}
+.nojs{padding:16px;background:#7f1d1d;color:#fff}
+
+/* ───────────── Reduced motion: no loops, nothing hidden ───────────── */
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .js .reveal{opacity:1;transform:none;transition:none}
+  .loop .st,.pipe .step,.flow{animation:none}
+  .chain.show-bwd .bwd{animation:none}
+  .bar-fill,.chain .fwd,.chain .bwd,.chain .lossv{transition:none}
+}
+</style>
+</head>
+<body>
+<noscript><p class="nojs">This explainer is interactive and needs JavaScript. The text below still describes each idea.</p></noscript>
+<a class="skip" href="#main">Skip to the content</a>
+
+<!-- ═════════════ HERO ═════════════ -->
+<header class="hero" id="top">
+  <canvas id="heroCanvas" aria-hidden="true"></canvas>
+  <div class="wrap hero-inner">
+    <a class="back" href="index.html">← Module 01 overview</a>
+    <span class="badge">Module 01 · Beyond the deck</span>
+    <h1>How a <span class="grad">neural network</span> actually learns</h1>
+    <p class="sub">Start with <strong>one neuron</strong>. Stack a few. Watch them learn to draw a boundary <strong>in real time</strong>, then see how the same idea, scaled up billions of times, becomes the kind of model behind AI coding assistants.</p>
+    <div class="hero-cta">
+      <a class="btn primary" href="#neuron">Start the tour ↓</a>
+      <a class="btn" href="#playground">Jump to the live playground</a>
+    </div>
+    <ul class="chips" aria-label="The four ideas in this page">
+      <li><b>1</b>A neuron weighs evidence</li>
+      <li><b>2</b>Layers build up patterns</li>
+      <li><b>3</b>Training nudges the dials</li>
+      <li><b>4</b>Scale it up → an LLM</li>
+    </ul>
+    <p class="fine">Everything here runs live in your browser. No libraries, no network calls.</p>
+  </div>
+</header>
+
+<nav class="topnav" aria-label="Page sections">
+  <ul>
+    <li><a href="#neuron">1 · Neuron</a></li>
+    <li><a href="#layers">2 · Layers</a></li>
+    <li><a href="#learning">3 · Learning</a></li>
+    <li><a href="#backprop">4 · Backprop</a></li>
+    <li><a href="#playground">5 · Playground</a></li>
+    <li><a href="#llm">6 · To LLMs</a></li>
+    <li><a href="#recap">Recap</a></li>
+  </ul>
+</nav>
+
+<main id="main">
+
+<!-- ═════════════ 1 · NEURON ═════════════ -->
+<section class="block" id="neuron" aria-labelledby="h-neuron">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="eyebrow">01 · The neuron</span>
+      <h2 id="h-neuron">One neuron is a weighted vote</h2>
+      <p class="lede">Each input is a piece of <strong>evidence</strong>. Each <strong>weight</strong> says how much this neuron cares about it (negative = counts against). Add it all up, add a <strong>bias</strong> (how easily it fires), then pass the total through an <strong>activation</strong>, the bend that decides how loudly it speaks.</p>
+    </div>
+    <div class="grid-2 reveal">
+      <div class="panel">
+        <section class="scrollx" tabindex="0" aria-label="Neuron diagram (scrolls sideways on small screens)">
+          <svg id="neuronSvg" class="diagram d-neuron" viewBox="0 0 700 380" role="img" aria-label="Diagram of one neuron. Three inputs are each multiplied by a weight, added together with a bias, passed through an activation function, and produce one output. Line thickness shows weight size; dashed lines are negative weights."></svg>
+        </section>
+        <p class="hint">Swipe the diagram sideways →</p>
+        <div class="readout" id="neuronEq"></div>
+      </div>
+      <div class="panel">
+        <p class="mini">Picture a neuron deciding <strong>“accept this AI code suggestion?”</strong> It looks at three signals and votes. <em>(An analogy, not from the deck.)</em></p>
+        <div class="ctl-group"><h3>Evidence (inputs, 0 to 1)</h3><div id="ctlX"></div></div>
+        <div class="ctl-group"><h3>Weights (how much each matters)</h3><div id="ctlW"></div></div>
+        <div class="ctl-group"><h3>Bias (readiness to fire)</h3><div id="ctlB"></div></div>
+        <div class="ctl-group"><h3 id="actLbl">Activation (the bend)</h3><div class="seg" role="radiogroup" aria-labelledby="actLbl" id="actSeg"></div></div>
+        <div class="btn-row"><button class="btn" id="neuronRand" type="button">Randomize dials</button><button class="btn" id="neuronReset" type="button">Reset</button></div>
+      </div>
+    </div>
+    <div class="act-gallery reveal" id="actGallery"></div>
+    <p class="callout reveal"><strong>Why bother with a bend?</strong> Without an activation, stacking layers collapses into one big straight-line formula, no smarter than a single neuron. The bend is what lets depth add power. You’ll prove it yourself in the playground by switching to <em>linear</em>.</p>
+  </div>
+</section>
+
+<!-- ═════════════ 2 · LAYERS ═════════════ -->
+<section class="block" id="layers" aria-labelledby="h-layers">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="eyebrow">02 · Layers</span>
+      <h2 id="h-layers">Stack neurons and simple votes become patterns</h2>
+      <p class="lede">Neurons in a layer all look at the same inputs but weigh them differently. The next layer then votes on the <strong>previous layer’s votes</strong>, so early layers pick out simple signals and later layers combine them into richer ones. Click any neuron to see exactly how it computed its value.</p>
+    </div>
+    <div class="grid-2 wide reveal">
+      <div class="panel">
+        <div class="btn-row flush">
+          <button class="btn primary" id="layerPlay" type="button">▶ Send a signal through</button>
+          <button class="btn" id="layerShuffle" type="button">↻ Shuffle the dials</button>
+        </div>
+        <section class="scrollx" tabindex="0" aria-label="Network diagram (scrolls sideways on small screens)">
+          <svg id="layerSvg" class="diagram d-layers" viewBox="0 0 800 400" role="img" aria-label="A small neural network with an input layer of 3 neurons, two hidden layers of 5 and 4 neurons, and an output layer of 3 neurons. Every neuron connects to every neuron in the next layer. Blue lines are positive weights, orange dashed lines are negative weights. The output is shown as three probabilities."></svg>
+        </section>
+        <p class="hint">Swipe the diagram sideways →</p>
+        <div class="legend"><span><i class="ln pos"></i>positive weight</span><span><i class="ln neg"></i>negative weight</span><span>node colour/number = activation (blue +, orange −)</span></div>
+      </div>
+      <div class="panel">
+        <div class="ctl-group"><h3>Inputs (features, −1 to 1)</h3><div id="ctlLayerIn"></div></div>
+        <div class="ctl-group inspect" id="layerInspect" aria-live="polite"></div>
+      </div>
+    </div>
+    <p class="callout reveal"><strong>Heads-up:</strong> these dials are <em>random</em>, so the output means nothing yet. Change an input or shuffle the weights and the “answer” changes, but there is no reason behind it. A trained network is exactly this machine with <em>good</em> dials. So how do we find them? →</p>
+  </div>
+</section>
+
+<!-- ═════════════ 3 · LEARNING ═════════════ -->
+<section class="block" id="learning" aria-labelledby="h-learning">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="eyebrow">03 · Learning</span>
+      <h2 id="h-learning">Learning = measure the error, then roll downhill</h2>
+      <p class="lede">Nobody hand-sets millions of weights. Training repeats one small loop, thousands of times.</p>
+    </div>
+    <div class="loop reveal">
+      <div class="st"><span class="num">1</span><h3>Forward pass</h3><p>Feed an example in. The network makes a guess.</p></div>
+      <div class="st"><span class="num">2</span><h3>Loss</h3><p>Score the guess against the right answer: one number, “how wrong”.</p></div>
+      <div class="st"><span class="num">3</span><h3>Backprop</h3><p>Work out how much each dial contributed to the error (its gradient).</p></div>
+      <div class="st"><span class="num">4</span><h3>Update</h3><p>Nudge every dial a little in the direction that lowers the loss.</p></div>
+    </div>
+    <p class="repeat reveal">↻ repeat on the next batch of examples, until the loss stops improving</p>
+
+    <h3 class="sub-h reveal">Gradient descent: one dial, one hill</h3>
+    <div class="grid-2 reveal">
+      <div class="panel">
+        <section class="scrollx" tabindex="0" aria-label="Loss landscape plot (scrolls sideways on small screens)">
+          <svg id="gdSvg" class="diagram d-gd" viewBox="0 0 640 300" role="img" aria-label="Plot of loss against a single weight w. A ball sits on the curve and rolls downhill in steps. Click the curve to drop the ball somewhere else."></svg>
+        </section>
+        <p class="hint">Swipe the plot sideways →</p>
+        <div class="tiles" id="gdTiles"></div>
+        <p class="caption short" id="gdMsg" aria-live="polite"></p>
+      </div>
+      <div class="panel">
+        <div class="ctl-group"><h3>Learning rate (step size)</h3><div id="ctlLR"></div></div>
+        <div class="ctl-group"><h3 id="landLbl">Landscape</h3><div class="seg" role="radiogroup" aria-labelledby="landLbl" id="landSeg"></div></div>
+        <div class="btn-row">
+          <button class="btn primary" id="gdStep" type="button">Step ▸</button>
+          <button class="btn" id="gdAuto" type="button" aria-pressed="false">Auto-run</button>
+          <button class="btn" id="gdDrop" type="button">Drop elsewhere</button>
+        </div>
+        <p class="mini mt14">Each step: <strong>w ← w − learning rate × slope</strong>. Tiny steps crawl; huge steps overshoot and bounce out of the valley. <em>Tip: click the curve to drop the ball anywhere.</em></p>
+        <p class="mini mt8">A real network has millions of dials, so the “hill” has millions of dimensions. The rule is the same.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 4 · BACKPROP ═════════════ -->
+<section class="block" id="backprop" aria-labelledby="h-backprop">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="eyebrow">04 · Backpropagation</span>
+      <h2 id="h-backprop">Assign the blame, backwards</h2>
+      <p class="lede">The slope for <em>every</em> dial comes from one sweep from the loss back to the input, multiplying local slopes as it goes (the chain rule). Here is the smallest network that shows it, with real numbers: <strong>x → ×w₁ → tanh → ×w₂ → ŷ</strong>, and we want ŷ to hit the target <strong>t = 0.8</strong>.</p>
+    </div>
+    <div class="panel reveal">
+      <div class="chain" id="chain" role="group" aria-label="Backpropagation worked example">
+        <div class="tile"><div class="tn">x</div><div class="param">input = <span id="bpX"></span></div><div class="fwd">value fixed</div></div>
+        <span class="carr" aria-hidden="true">→</span>
+        <div class="tile"><div class="tn">z = w₁ · x</div><div class="param" id="bpW1"></div><div class="fwd" id="fz"></div><div class="bwd" id="bdz" style="--d:.45s"></div><div class="bwd" id="bdw1" style="--d:.6s"></div></div>
+        <span class="carr" aria-hidden="true">→</span>
+        <div class="tile"><div class="tn">h = tanh(z)</div><div class="param">no dial</div><div class="fwd" id="fh"></div><div class="bwd" id="bdh" style="--d:.3s"></div></div>
+        <span class="carr" aria-hidden="true">→</span>
+        <div class="tile"><div class="tn">ŷ = w₂ · h</div><div class="param" id="bpW2"></div><div class="fwd" id="fy"></div><div class="bwd" id="bdy" style="--d:.15s"></div><div class="bwd" id="bdw2" style="--d:.3s"></div></div>
+        <span class="carr" aria-hidden="true">→</span>
+        <div class="tile"><div class="tn">L = ½(ŷ − t)²</div><div class="param">target t = <span id="bpT"></span></div><div class="lossv" id="fl"></div><div class="bwd" style="--d:0s">start here ↩</div></div>
+      </div>
+      <div class="key"><span><i class="k-pos"></i>forward values</span><span><i class="k-amber"></i>gradients (blame, flowing right → left)</span><span><i class="k-good"></i>updated dial</span></div>
+      <div class="caption" id="bpCaption" aria-live="polite"></div>
+      <div class="btn-row">
+        <button class="btn primary" id="bpNext" type="button">Next step ▸</button>
+        <button class="btn" id="bpAuto" type="button" aria-pressed="false">Auto-train</button>
+        <button class="btn" id="bpReset" type="button">Reset</button>
+      </div>
+      <div class="ctl-group lim"><div id="ctlBpLR"></div></div>
+      <svg class="spark" id="bpSpark" viewBox="0 0 400 56" role="img" aria-label="Line chart of the loss falling over training iterations"></svg>
+      <p class="mini">Loss after each iteration (<span id="bpIter">0</span> so far). Watch it fall as the dials move.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 5 · PLAYGROUND ═════════════ -->
+<section class="block" id="playground" aria-labelledby="h-play">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="eyebrow">05 · Live playground</span>
+      <h2 id="h-play">Train a real network, right here</h2>
+      <p class="lede">This is an actual neural network learning in your browser. It sees points of two classes (<strong class="c-pos">blue ●</strong> and <strong class="c-neg">orange ■</strong>) and must learn where the boundary is. The background shows its current belief. Squares inside the network show what each neuron responds to. Hollow shapes are <strong>test points</strong> it never trains on.</p>
+    </div>
+
+    <div class="panel pg-controls reveal">
+      <div><div class="ctl-title" id="lblData">Data</div><div class="seg" id="segData" role="radiogroup" aria-labelledby="lblData"></div></div>
+      <div><div class="ctl-title" id="lblDepth">Hidden layers</div><div class="seg" id="segDepth" role="radiogroup" aria-labelledby="lblDepth"></div></div>
+      <div><div class="ctl-title" id="lblWidth">Neurons per layer</div><div class="seg" id="segWidth" role="radiogroup" aria-labelledby="lblWidth"></div></div>
+      <div><div class="ctl-title" id="lblAct">Activation</div><div class="seg" id="segAct" role="radiogroup" aria-labelledby="lblAct"></div></div>
+      <div><div class="ctl-title" id="lblSpeed">Speed</div><div class="seg" id="segSpeed" role="radiogroup" aria-labelledby="lblSpeed"></div></div>
+      <div id="ctlPgLR"></div>
+      <div class="btn-row span">
+        <button class="btn primary" id="pgPlay" type="button">▶ Train</button>
+        <button class="btn" id="pgStep" type="button">⏭ 1 epoch</button>
+        <button class="btn" id="pgReinit" type="button">↺ Re-init weights</button>
+        <button class="btn" id="pgNew" type="button">⟳ New data</button>
+      </div>
+    </div>
+
+    <div class="pg-main reveal">
+      <div class="panel">
+        <h3>What it predicts</h3>
+        <canvas id="pgMap" role="img" aria-label="Decision map. Background colour shows the network's prediction at each point, blue for class 1 and orange for class 0. Dots are training examples; hollow shapes are test examples."></canvas>
+        <div class="legend"><span><i class="sw pos"></i>class 1 (●)</span><span><i class="sw neg"></i>class 0 (■)</span><span>hollow = test data</span></div>
+      </div>
+      <div class="panel">
+        <h3>Inside the network</h3>
+        <canvas id="pgNet" role="img" aria-label="The network drawn as layers of neurons. Each neuron is a small picture of what it responds to across the input space. Line thickness shows weight size; blue lines are positive weights and orange dashed lines are negative."></canvas>
+        <div class="legend"><span><i class="ln pos"></i>positive weight</span><span><i class="ln neg"></i>negative weight</span><span>thickness = size</span></div>
+      </div>
+    </div>
+
+    <div class="pg-bottom reveal">
+      <div class="panel">
+        <div class="tiles">
+          <div class="tile-stat"><span>Epoch</span><b id="sEpoch">0</b></div>
+          <div class="tile-stat"><span>Train loss</span><b id="sTrL">–</b></div>
+          <div class="tile-stat"><span>Test loss</span><b id="sTeL">–</b></div>
+          <div class="tile-stat"><span>Train acc.</span><b id="sTrA">–</b></div>
+          <div class="tile-stat"><span>Test acc.</span><b id="sTeA">–</b></div>
+          <div class="tile-stat"><span>Parameters</span><b id="sParams">–</b></div>
+        </div>
+        <p class="mini mt12">Optimiser: <strong>Adam</strong>, a smarter variant of the “nudge downhill” rule from section 3. An <em>epoch</em> is one pass over all training points.</p>
+        <p class="sr-only" role="status" id="pgStatus"></p>
+      </div>
+      <div class="panel">
+        <h3>Loss over time</h3>
+        <canvas id="pgChart" role="img" aria-label="Line chart of training loss (blue) and test loss (orange, dashed) over training time. Lower is better."></canvas>
+      </div>
+    </div>
+
+    <div class="chal reveal" id="challenges">
+      <div class="panel"><h3>① Why the bend matters</h3><p>Circle data with <b>linear</b> activation: every layer is a straight-line formula, so it can only cut with one line. Then switch to tanh.</p><button class="btn" type="button" data-cfg='{"ds":"circle","act":"linear","width":6,"depth":2,"lr":0.03}'>Try it</button></div>
+      <div class="panel"><h3>② Too few neurons</h3><p>The spiral with just 2 neurons in 1 layer. It can bend the boundary only a little, so accuracy stalls well short of perfect. Capacity limits what can be learned.</p><button class="btn" type="button" data-cfg='{"ds":"spiral","act":"tanh","width":2,"depth":1,"lr":0.03}'>Try it</button></div>
+      <div class="panel"><h3>③ Add capacity</h3><p>The same spiral with 8 neurons across 2 layers. It usually cracks it within a few hundred epochs, often after a long plateau. Runs at <b>Fast</b> speed.</p><button class="btn" type="button" data-cfg='{"ds":"spiral","act":"tanh","width":8,"depth":2,"lr":0.03,"speed":24}'>Try it</button></div>
+      <div class="panel"><h3>④ Learning rate too high</h3><p>Circle data with a big learning rate (0.3). The steps overshoot, so the curves wobble or stall instead of settling. Then try a tiny rate and watch it crawl.</p><button class="btn" type="button" data-cfg='{"ds":"circle","act":"tanh","width":6,"depth":2,"lr":0.3}'>Try it</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 6 · LLM ═════════════ -->
+<section class="block" id="llm" aria-labelledby="h-llm">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="eyebrow">06 · From neurons to LLMs</span>
+      <h2 id="h-llm">Same machinery, billions of dials: predict the next token</h2>
+      <p class="lede">A large language model is a neural network too. Text goes in as numbers, flows through many stacked layers of weighted sums and bends (plus a mechanism called <strong>attention</strong>), and out comes a score for every possible next token. As the Module 01 recap puts it, the model picks a likely continuation, appends it, and repeats.</p>
+    </div>
+    <div class="pipe reveal" role="group" aria-label="How an LLM produces the next token">
+      <div class="step"><h3>① Prompt</h3><p>The text so far.</p><code>public void UpdateZone<wbr>Setpoint(</code></div>
+      <span class="arr" aria-hidden="true">→</span>
+      <div class="step"><h3>② Tokens</h3><p>Text is cut into pieces, each mapped to an integer ID.</p><span class="tok">public</span><span class="tok">·void</span><span class="tok">·Update</span><span class="tok">Zone</span><span class="tok">…</span><p class="mt4">(illustrative split)</p></div>
+      <span class="arr" aria-hidden="true">→</span>
+      <div class="step"><h3>③ Embeddings</h3><p>Each token becomes a list of numbers: the network’s input layer.</p><code>[0.21, −0.80, 0.05, …]</code></div>
+      <span class="arr" aria-hidden="true">→</span>
+      <div class="step"><h3>④ Layers + attention</h3><p>The neurons and weights you just played with, stacked deep. Attention lets each token look at the others.</p></div>
+      <span class="arr" aria-hidden="true">→</span>
+      <div class="step"><h3>⑤ Softmax</h3><p>Raw scores become probabilities that add to 100%, one per token in the vocabulary.</p></div>
+      <span class="arr" aria-hidden="true">→</span>
+      <div class="step"><h3>⑥ Pick &amp; repeat</h3><p>Choose one (temperature steers this), append it, go again.</p></div>
+    </div>
+
+    <div class="grid-2 reveal">
+      <div class="panel">
+        <h3>Try the last step: temperature</h3>
+        <p class="mini">Illustrative probabilities after <code>public void UpdateZoneSetpoint(</code> from the Module 01 deck. The “anything else” row is the 5% remainder, added so the bars total 100%.</p>
+        <div class="bars" id="llmBars"></div>
+        <div id="ctlTemp"></div>
+        <div class="btn-row"><button class="btn primary" id="llmPick" type="button">Pick next token</button><button class="btn" id="llmRoll" type="button">Roll ×50</button></div>
+        <p class="codeline mt14" aria-live="polite">public void UpdateZoneSetpoint(<span class="pick" id="llmPicked">▮</span></p>
+        <div class="tally" id="llmTally" role="group" aria-label="Pick tally"></div>
+        <p class="mini mt10"><strong>Low temperature</strong> → almost always the top choice (precise). <strong>High</strong> → the bars flatten and the model gets more varied. The deck’s guidance: keep it low for code and refactors, higher for brainstorming.</p>
+      </div>
+      <div class="panel">
+        <h3>Scale: same recipe, more dials</h3>
+        <div class="scale">
+          <div class="tile-stat"><span>Playground network</span><b id="paramLive">–</b><small>parameters (live)</small></div>
+          <div class="tile-stat"><span>GPT-3</span><b>175 billion</b><small>parameters</small></div>
+        </div>
+        <p class="stat-source">GPT-3 figure: Brown et al., 2020, <a href="https://arxiv.org/abs/2005.14165" rel="noopener">“Language Models are Few-Shot Learners”</a>. Transformer architecture: Vaswani et al., 2017, <a href="https://arxiv.org/abs/1706.03762" rel="noopener">“Attention Is All You Need”</a>.</p>
+        <p class="mini mt12">Training is the same loop you saw: guess the next token, score it, blame the dials, nudge. It is just run on a vast amount of text and code.</p>
+        <ul class="bullets">
+          <li><strong>Fluent ≠ correct.</strong> <span>Output is probable, not verified, which is why specs, tests and review sit at the core of this programme.</span></li>
+          <li><strong>Behaviour lives in learned weights.</strong> <span>You can’t read rules out of a network, so you check its work like a colleague’s first draft.</span></li>
+          <li><strong>Tokens are the unit.</strong> <span>Inputs, outputs, limits and cost are all measured in tokens.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ RECAP ═════════════ -->
+<section class="block" id="recap" aria-labelledby="h-recap">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="eyebrow">Recap</span>
+      <h2 id="h-recap">The whole idea in four lines</h2>
+    </div>
+    <div class="ladder reveal">
+      <div class="rung"><b>Neuron</b><span>weighted sum + bias, then a bend</span></div>
+      <div class="rung"><b>Layer</b><span>many neurons side by side, each weighing the inputs differently</span></div>
+      <div class="rung"><b>Network</b><span>layers stacked so later ones combine earlier patterns</span></div>
+      <div class="rung"><b>Training</b><span>guess → score → blame → nudge, repeated until the loss stops falling</span></div>
+    </div>
+    <dl class="gloss reveal">
+      <div><dt>Weight</dt><dd>A dial that scales one input. What training adjusts.</dd></div>
+      <div><dt>Bias</dt><dd>An extra dial that shifts when a neuron fires.</dd></div>
+      <div><dt>Activation</dt><dd>The bend applied to the weighted sum. Without it, depth adds nothing.</dd></div>
+      <div><dt>Loss</dt><dd>One number for “how wrong is the network on this data”.</dd></div>
+      <div><dt>Gradient</dt><dd>The slope of the loss for one dial: which way to move it, and how steeply.</dd></div>
+      <div><dt>Learning rate</dt><dd>How big a nudge to take each step. Too small crawls; too big overshoots.</dd></div>
+      <div><dt>Backpropagation</dt><dd>Chain-rule bookkeeping that computes every gradient in one backward sweep.</dd></div>
+      <div><dt>Epoch</dt><dd>One full pass over the training data.</dd></div>
+      <div><dt>Overfitting</dt><dd>Memorising training data: train loss keeps falling while test loss stops improving or rises.</dd></div>
+      <div><dt>Parameters</dt><dd>All the weights and biases, the “size” people quote for a model.</dd></div>
+      <div><dt>Softmax</dt><dd>Turns raw scores into probabilities that add to 100%.</dd></div>
+      <div><dt>Token</dt><dd>The unit of text an LLM reads and writes, and the unit of limits and cost.</dd></div>
+    </dl>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><a href="index.html">← Back to the Module 01 overview</a> · <a href="#top">Back to top ↑</a></p>
+    <p class="mt14"><strong>Sources and further exploring.</strong> This page is supplementary (“beyond the deck”): the LLM next-token probabilities come from the Module 01 deck (labelled illustrative there); everything else is standard neural-network material.</p>
+    <ul>
+      <li><a href="https://arxiv.org/abs/1706.03762" rel="noopener">Attention Is All You Need</a> (Vaswani et al., 2017)</li>
+      <li><a href="https://arxiv.org/abs/2005.14165" rel="noopener">Language Models are Few-Shot Learners</a> (Brown et al., 2020)</li>
+      <li><a href="https://www.3blue1brown.com/topics/neural-networks" rel="noopener">3Blue1Brown: Neural networks</a>, a visual video series</li>
+      <li><a href="https://playground.tensorflow.org" rel="noopener">TensorFlow Playground</a>, the classic that inspired section 5</li>
+    </ul>
+  </div>
+</footer>
+
+<script>
+'use strict';
+/* ═══════════════════════════════════════════════════════════════════
+   CORE: tiny neural-net engine (no dependencies). Also unit-tested in node.
+   ═══════════════════════════════════════════════════════════════════ */
+// <CORE>
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gauss(r){let u=0,v=0;while(u===0)u=r();while(v===0)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+function act(n,z){switch(n){case'tanh':return Math.tanh(z);case'relu':return z>0?z:0;case'sigmoid':return 1/(1+Math.exp(-z));default:return z}}
+function dact(n,z,a){switch(n){case'tanh':return 1-a*a;case'relu':return z>0?1:0;case'sigmoid':return a*(1-a);default:return 1}}
+
+class MLP{
+  constructor(sizes,o={}){this.sizes=sizes;this.hidden=o.hidden||'tanh';this.out=o.out||'sigmoid';this.rng=o.rng||Math.random;this.init()}
+  init(){
+    const s=this.sizes,L=s.length-1;
+    this.W=[];this.b=[];this.gW=[];this.gb=[];this.mW=[];this.vW=[];this.mb=[];this.vb=[];this.t=0;
+    for(let l=0;l<L;l++){
+      const fi=s[l],fo=s[l+1],sd=(this.hidden==='relu'&&l<L-1)?Math.sqrt(2/fi):Math.sqrt(2/(fi+fo));
+      const w=new Float64Array(fi*fo);for(let i=0;i<w.length;i++)w[i]=gauss(this.rng)*sd;
+      this.W.push(w);this.b.push(new Float64Array(fo));
+      this.gW.push(new Float64Array(fi*fo));this.gb.push(new Float64Array(fo));
+      this.mW.push(new Float64Array(fi*fo));this.vW.push(new Float64Array(fi*fo));
+      this.mb.push(new Float64Array(fo));this.vb.push(new Float64Array(fo));
+    }
+    this.z=s.map(n=>new Float64Array(n));this.a=s.map(n=>new Float64Array(n));this.d=s.map(n=>new Float64Array(n));
+  }
+  forward(x){
+    const s=this.sizes,L=s.length-1,a=this.a,zz=this.z;
+    for(let i=0;i<x.length;i++)a[0][i]=x[i];
+    for(let l=0;l<L;l++){
+      const fi=s[l],fo=s[l+1],W=this.W[l],b=this.b[l],ai=a[l],zo=zz[l+1],ao=a[l+1];
+      for(let j=0;j<fo;j++){let t=b[j];const o=j*fi;for(let i=0;i<fi;i++)t+=W[o+i]*ai[i];zo[j]=t}
+      if(l<L-1){for(let j=0;j<fo;j++)ao[j]=act(this.hidden,zo[j])}
+      else if(this.out==='softmax'){let m=-Infinity;for(let j=0;j<fo;j++)if(zo[j]>m)m=zo[j];let sum=0;for(let j=0;j<fo;j++){ao[j]=Math.exp(zo[j]-m);sum+=ao[j]}for(let j=0;j<fo;j++)ao[j]/=sum}
+      else{for(let j=0;j<fo;j++)ao[j]=act(this.out,zo[j])}
+    }
+    return a[L];
+  }
+  zeroGrad(){for(let l=0;l<this.W.length;l++){this.gW[l].fill(0);this.gb[l].fill(0)}}
+  /* binary cross-entropy + sigmoid output: delta at the output is (p - y) */
+  accumulate(x,y){
+    const s=this.sizes,L=s.length-1,p=this.forward(x)[0],eps=1e-7;
+    const loss=-(y*Math.log(p+eps)+(1-y)*Math.log(1-p+eps));
+    this.d[L][0]=p-y;
+    for(let l=L-1;l>=0;l--){
+      const fi=s[l],fo=s[l+1],W=this.W[l],gW=this.gW[l],gb=this.gb[l],dout=this.d[l+1],ai=this.a[l];
+      for(let j=0;j<fo;j++){const dj=dout[j];gb[j]+=dj;const o=j*fi;for(let i=0;i<fi;i++)gW[o+i]+=dj*ai[i]}
+      if(l>0){const din=this.d[l],zin=this.z[l];
+        for(let i=0;i<fi;i++){let t=0;for(let j=0;j<fo;j++)t+=W[j*fi+i]*dout[j];din[i]=t*dact(this.hidden,zin[i],ai[i])}}
+    }
+    return loss;
+  }
+  adam(lr,n){
+    this.t++;const b1=.9,b2=.999,e=1e-8,c1=1-Math.pow(b1,this.t),c2=1-Math.pow(b2,this.t);
+    for(let l=0;l<this.W.length;l++){
+      const W=this.W[l],g=this.gW[l],m=this.mW[l],v=this.vW[l];
+      for(let k=0;k<W.length;k++){const gr=g[k]/n;m[k]=b1*m[k]+(1-b1)*gr;v[k]=b2*v[k]+(1-b2)*gr*gr;W[k]-=lr*(m[k]/c1)/(Math.sqrt(v[k]/c2)+e)}
+      const B=this.b[l],gb=this.gb[l],mb=this.mb[l],vb=this.vb[l];
+      for(let k=0;k<B.length;k++){const gr=gb[k]/n;mb[k]=b1*mb[k]+(1-b1)*gr;vb[k]=b2*vb[k]+(1-b2)*gr*gr;B[k]-=lr*(mb[k]/c1)/(Math.sqrt(vb[k]/c2)+e)}
+    }
+  }
+  evaluate(data){
+    let loss=0,ok=0,eps=1e-7;const xy=[0,0];
+    for(const p of data){xy[0]=p.x;xy[1]=p.y;const q=this.forward(xy)[0];loss-=p.c*Math.log(q+eps)+(1-p.c)*Math.log(1-q+eps);if((q>.5)===(p.c===1))ok++}
+    return{loss:loss/data.length,acc:ok/data.length};
+  }
+  paramCount(){let n=0;for(let l=0;l<this.W.length;l++)n+=this.W[l].length+this.b[l].length;return n}
+}
+
+function makeData(kind,n,rng){
+  const pts=[],add=(x,y,c)=>pts.push({x,y,c});
+  for(let i=0;i<n;i++){
+    const c=i%2;
+    if(kind==='circle'){const r=c?.22+rng()*.24:.62+rng()*.26,t=rng()*Math.PI*2;add(r*Math.cos(t)+gauss(rng)*.04,r*Math.sin(t)+gauss(rng)*.04,c)}
+    else if(kind==='xor'){let x=(rng()*2-1)*.85,y=(rng()*2-1)*.85;x+=x>=0?.08:-.08;y+=y>=0?.08:-.08;add(x+gauss(rng)*.03,y+gauss(rng)*.03,x*y>0?1:0)}
+    else if(kind==='blobs'){const cx=c?.45:-.45,cy=c?.4:-.4;add(cx+gauss(rng)*.17,cy+gauss(rng)*.17,c)}
+    else{const k=Math.floor(i/2)/(n/2),r=.08+.84*k,t=k*Math.PI*2+(c?Math.PI:0);add(r*Math.sin(t)+gauss(rng)*.03,r*Math.cos(t)+gauss(rng)*.03,c)}
+  }
+  return pts;
+}
+// </CORE>
+
+/* ═══════════════════════════════════════════════════════════════════
+   Helpers
+   ═══════════════════════════════════════════════════════════════════ */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const NS='http://www.w3.org/2000/svg';
+const svgEl=(tag,attrs,parent)=>{const e=document.createElementNS(NS,tag);if(attrs)for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const fmt=(v,d=2)=>{const s=Math.abs(v).toFixed(d);return (v<0&&+s!==0?'−':'')+s};
+const sfmt=(v,d=2)=>{const s=Math.abs(v).toFixed(d);return (v<0&&+s!==0?'−':'+')+s};
+const reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const POS=[56,189,248],NEG=[251,146,60],MID=[41,56,80],DARK=[30,41,59];
+const mix=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
+const rgb=c=>`rgb(${c[0]|0},${c[1]|0},${c[2]|0})`;
+const divColor=t=>{t=clamp(t,0,1);return t<.5?mix(NEG,MID,t*2):mix(MID,POS,(t-.5)*2)};   // 0 orange · .5 slate · 1 blue
+const seqColor=t=>mix(DARK,POS,clamp(t,0,1));
+const safe=(name,fn)=>{try{fn()}catch(e){console.error('[section '+name+']',e)}};
+
+function slider(host,o){
+  const row=document.createElement('div');row.className='ctl';
+  const lab=document.createElement('label');lab.htmlFor=o.id;lab.textContent=o.label;
+  const inp=document.createElement('input');inp.type='range';inp.id=o.id;inp.min=o.min;inp.max=o.max;inp.step=o.step;inp.value=o.value;
+  const out=document.createElement('output');out.setAttribute('for',o.id);out.setAttribute('aria-live','off');
+  const show=()=>{out.textContent=o.fmt(+inp.value)};
+  inp.addEventListener('input',()=>{show();o.onInput(+inp.value)});
+  show();row.append(lab,inp,out);host.appendChild(row);
+  return{set(v){inp.value=v;show()},get:()=>+inp.value};
+}
+function seg(host,name,opts,value,onChange){
+  host.textContent='';
+  opts.forEach(([v,label])=>{
+    const id=name+'-'+v,inp=document.createElement('input');
+    inp.type='radio';inp.name=name;inp.id=id;inp.value=v;inp.checked=String(v)===String(value);
+    const lab=document.createElement('label');lab.htmlFor=id;lab.textContent=label;
+    inp.addEventListener('change',()=>{if(inp.checked)onChange(String(v))});
+    host.append(inp,lab);
+  });
+  return{set(v){$$('input',host).forEach(i=>{i.checked=i.value===String(v)})}};
+}
+function fitCanvas(cv,w,h){const d=Math.min(window.devicePixelRatio||1,2);cv.style.height=h+'px';cv.width=Math.max(1,Math.round(w*d));cv.height=Math.max(1,Math.round(h*d));const x=cv.getContext('2d');x.setTransform(d,0,0,d,0,0);return x}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Page chrome: reveal-on-scroll + nav scroll-spy
+   ═══════════════════════════════════════════════════════════════════ */
+safe('chrome',()=>{
+  const rev=$$('.reveal');
+  if(!('IntersectionObserver' in window)){rev.forEach(r=>r.classList.add('in'));return}
+  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.06,rootMargin:'0px 0px -4% 0px'});
+  rev.forEach(r=>io.observe(r));
+  const links=$$('.topnav a'),ul=$('.topnav ul'),map=new Map(links.map(a=>[a.getAttribute('href').slice(1),a]));
+  const spy=new IntersectionObserver(es=>es.forEach(e=>{
+    if(!e.isIntersecting)return;
+    links.forEach(l=>l.removeAttribute('aria-current'));
+    const a=map.get(e.target.id);if(a){a.setAttribute('aria-current','true');ul.scrollTo({left:a.offsetLeft-ul.clientWidth/2+a.clientWidth/2,behavior:reduceMotion?'auto':'smooth'})}
+  }),{rootMargin:'-45% 0px -50% 0px'});
+  $$('main section[id]').forEach(s=>spy.observe(s));
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   Hero: ambient network with travelling pulses
+   ═══════════════════════════════════════════════════════════════════ */
+safe('hero',()=>{
+  const c=$('#heroCanvas'),ctx=c.getContext('2d');
+  let W=0,H=0,nodes=[],edges=[],pulses=[],raf=0,last=0,spawn=0,visible=true;
+  function build(){
+    const d=Math.min(devicePixelRatio||1,2);W=c.clientWidth;H=c.clientHeight;c.width=W*d;c.height=H*d;ctx.setTransform(d,0,0,d,0,0);
+    const layers=W<640?[3,5,5,3]:[4,6,8,7,5,3];nodes=[];edges=[];
+    layers.forEach((n,l)=>{const x=W*(.05+.9*l/(layers.length-1));for(let j=0;j<n;j++)nodes.push({l,x,y:H*(.1+.8*(j+.5)/n)+Math.sin(l*2+j)*6,glow:0,out:[]})});
+    nodes.forEach(a=>nodes.forEach(b=>{if(b.l===a.l+1){const e={a,b};edges.push(e);a.out.push(e)}}));
+    pulses=[];
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.lineWidth=1;ctx.strokeStyle='rgba(122,167,214,.17)';
+    ctx.beginPath();edges.forEach(e=>{ctx.moveTo(e.a.x,e.a.y);ctx.lineTo(e.b.x,e.b.y)});ctx.stroke();
+    nodes.forEach(n=>{
+      ctx.beginPath();ctx.arc(n.x,n.y,4+n.glow*3,0,6.283);
+      ctx.fillStyle=n.glow>.05?`rgba(56,189,248,${.35+n.glow*.65})`:'rgba(148,163,184,.6)';ctx.fill();
+      if(n.glow>.05){ctx.beginPath();ctx.arc(n.x,n.y,10+n.glow*8,0,6.283);ctx.fillStyle=`rgba(56,189,248,${n.glow*.15})`;ctx.fill()}
+    });
+    pulses.forEach(p=>{const x=p.e.a.x+(p.e.b.x-p.e.a.x)*p.t,y=p.e.a.y+(p.e.b.y-p.e.a.y)*p.t;
+      ctx.beginPath();ctx.arc(x,y,3,0,6.283);ctx.fillStyle=p.neg?'#fb923c':'#7dd3fc';ctx.fill();
+      ctx.beginPath();ctx.arc(x,y,8,0,6.283);ctx.fillStyle=p.neg?'rgba(251,146,60,.18)':'rgba(125,211,252,.18)';ctx.fill()});
+  }
+  function tick(ts){
+    raf=0;if(!visible||document.hidden)return;
+    const dt=Math.min(.05,(ts-last)/1000||.016);last=ts;
+    spawn-=dt;if(spawn<=0&&pulses.length<70){const ins=nodes.filter(n=>n.l===0),n=ins[Math.floor(Math.random()*ins.length)];const e=n.out[Math.floor(Math.random()*n.out.length)];pulses.push({e,t:0,v:.35+Math.random()*.25,neg:Math.random()<.35});spawn=.35}
+    for(let i=pulses.length-1;i>=0;i--){const p=pulses[i];p.t+=dt*p.v;
+      if(p.t>=1){p.e.b.glow=1;if(p.e.b.out.length){const k=1+(Math.random()<.5?1:0);for(let q=0;q<k&&pulses.length<70;q++)pulses.push({e:p.e.b.out[Math.floor(Math.random()*p.e.b.out.length)],t:0,v:.35+Math.random()*.25,neg:Math.random()<.35})}pulses.splice(i,1)}}
+    nodes.forEach(n=>{n.glow=Math.max(0,n.glow-dt*1.6)});
+    draw();raf=requestAnimationFrame(tick);
+  }
+  const start=()=>{if(!reduceMotion&&!raf&&visible)raf=requestAnimationFrame(tick)};
+  build();draw();
+  let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{build();draw();start()},150)});
+  if('IntersectionObserver' in window)new IntersectionObserver(es=>{visible=es[0].isIntersecting;if(visible)start()}).observe(c);
+  document.addEventListener('visibilitychange',start);
+  start();
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   1 · The neuron
+   ═══════════════════════════════════════════════════════════════════ */
+const ACTS={
+  sigmoid:{f:z=>1/(1+Math.exp(-z)),y:[-.15,1.15],sym:'σ',name:'sigmoid'},
+  relu:{f:z=>Math.max(0,z),y:[-.6,6.6],sym:'ReLU',name:'ReLU'},
+  tanh:{f:Math.tanh,y:[-1.25,1.25],sym:'tanh',name:'tanh'},
+  step:{f:z=>z>=0?1:0,y:[-.15,1.15],sym:'step',name:'step'}
+};
+function curvePath(key,x0,y0,w,h,steps){
+  const A=ACTS[key],pts=[];
+  for(let i=0;i<=steps;i++){const z=-6+12*i/steps,y=A.f(z);pts.push([x0+(z+6)/12*w,y0+h-(y-A.y[0])/(A.y[1]-A.y[0])*h])}
+  // step function: draw the vertical jump explicitly
+  if(key==='step'){const px=x0+w/2,lo=y0+h-(0-A.y[0])/(A.y[1]-A.y[0])*h,hi=y0+h-(1-A.y[0])/(A.y[1]-A.y[0])*h;return `M${x0},${lo} L${px},${lo} L${px},${hi} L${x0+w},${hi}`}
+  return 'M'+pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' L');
+}
+
+safe('neuron',()=>{
+  const S=$('#neuronSvg');
+  const names=['Tests pass','Style match','Small diff'],DEF={x:[.9,.6,.3],w:[1.2,.8,-1],b:-.5,act:'sigmoid'};
+  let X=DEF.x.slice(),Wt=DEF.w.slice(),B=DEF.b,key=DEF.act;
+  const IN=[{cx:96,cy:84},{cx:96,cy:190},{cx:96,cy:296}],SIG={cx:350,cy:190,r:46},BIAS={cx:350,cy:62,r:22},BOX={x:452,y:130,w:120,h:120},OUT={cx:640,cy:190,r:30};
+
+  const defs=svgEl('defs',{},S),mk=svgEl('marker',{id:'nArr',viewBox:'0 0 10 10',refX:'8',refY:'5',markerWidth:'7',markerHeight:'7',orient:'auto'},defs);
+  svgEl('path',{d:'M0 0L10 5L0 10z',fill:'#94a3b8'},mk);
+  const gEdges=svgEl('g',{},S);
+  const edges=IN.map((p,i)=>{
+    const dx=SIG.cx-p.cx,dy=SIG.cy-p.cy,len=Math.hypot(dx,dy),ux=dx/len,uy=dy/len;
+    const x1=p.cx+ux*30,y1=p.cy+uy*30,x2=SIG.cx-ux*SIG.r,y2=SIG.cy-uy*SIG.r;
+    const base=svgEl('line',{x1,y1,x2,y2,'stroke-linecap':'round'},gEdges),fl=svgEl('line',{x1,y1,x2,y2,class:'flow'},gEdges);
+    const lab=svgEl('text',{x:x1+(x2-x1)*.42,y:y1+(y2-y1)*.42+4,'text-anchor':'middle',class:'wlbl'},gEdges);
+    return{base,fl,lab};
+  });
+  const bEdge=svgEl('line',{x1:BIAS.cx,y1:BIAS.cy+BIAS.r,x2:BIAS.cx,y2:SIG.cy-SIG.r,'stroke-linecap':'round'},gEdges);
+  const bFlow=svgEl('line',{x1:BIAS.cx,y1:BIAS.cy+BIAS.r,x2:BIAS.cx,y2:SIG.cy-SIG.r,class:'flow'},gEdges);
+  const inTxt=IN.map((p,i)=>{
+    svgEl('circle',{cx:p.cx,cy:p.cy,r:30,fill:'#1e293b',stroke:'#475569','stroke-width':1.5},S);
+    svgEl('text',{x:p.cx,y:p.cy-6,'text-anchor':'middle',class:'lbl'},S).textContent='x'+'₁₂₃'[i];
+    svgEl('text',{x:p.cx,y:p.cy-44,'text-anchor':'middle',class:'lbl'},S).textContent=names[i];
+    return svgEl('text',{x:p.cx,y:p.cy+13,'text-anchor':'middle',class:'val'},S);
+  });
+  svgEl('text',{x:BIAS.cx,y:26,'text-anchor':'middle',class:'lbl'},S).textContent='bias';
+  svgEl('circle',{cx:BIAS.cx,cy:BIAS.cy,r:BIAS.r,fill:'#1e293b',stroke:'#475569','stroke-width':1.5},S);
+  const bTxt=svgEl('text',{x:BIAS.cx,y:BIAS.cy+4,'text-anchor':'middle',class:'val'},S);
+  svgEl('circle',{cx:SIG.cx,cy:SIG.cy,r:SIG.r,fill:'#1e293b',stroke:'#38bdf8','stroke-width':2},S);
+  svgEl('text',{x:SIG.cx,y:SIG.cy+11,'text-anchor':'middle',fill:'#e2e8f0','font-size':34,'font-weight':600},S).textContent='Σ';
+  const zTxt=svgEl('text',{x:SIG.cx,y:SIG.cy+SIG.r+24,'text-anchor':'middle',class:'val'},S);
+  svgEl('line',{x1:SIG.cx+SIG.r+4,y1:190,x2:BOX.x-4,y2:190,stroke:'#94a3b8','stroke-width':2,'marker-end':'url(#nArr)'},S);
+  svgEl('rect',{x:BOX.x,y:BOX.y,width:BOX.w,height:BOX.h,rx:14,fill:'#0b1222',stroke:'#475569','stroke-width':1.5},S);
+  const actTitle=svgEl('text',{x:BOX.x+BOX.w/2,y:BOX.y-12,'text-anchor':'middle',class:'lbl'},S);
+  const ax=svgEl('path',{stroke:'#334155','stroke-width':1,fill:'none'},S);
+  const curve=svgEl('path',{fill:'none',stroke:'#a78bfa','stroke-width':3,'stroke-linejoin':'round'},S);
+  const marker=svgEl('circle',{r:6,fill:'#fbbf24',stroke:'#0f172a','stroke-width':2},S);
+  svgEl('line',{x1:BOX.x+BOX.w+4,y1:190,x2:OUT.cx-OUT.r-4,y2:190,stroke:'#94a3b8','stroke-width':2,'marker-end':'url(#nArr)'},S);
+  const outC=svgEl('circle',{cx:OUT.cx,cy:OUT.cy,r:OUT.r,stroke:'#38bdf8','stroke-width':2},S);
+  const outT=svgEl('text',{x:OUT.cx,y:OUT.cy+4,'text-anchor':'middle',class:'val'},S);
+  svgEl('text',{x:OUT.cx,y:OUT.cy+OUT.r+22,'text-anchor':'middle',class:'lbl'},S).textContent='output';
+
+  const eq=$('#neuronEq');
+  const ctlX=[],ctlW=[];
+  names.forEach((n,i)=>{
+    ctlX.push(slider($('#ctlX'),{id:'nx'+i,label:'x'+'₁₂₃'[i]+' '+n,min:0,max:1,step:.01,value:X[i],fmt:v=>v.toFixed(2),onInput:v=>{X[i]=v;update()}}));
+    ctlW.push(slider($('#ctlW'),{id:'nw'+i,label:'w'+'₁₂₃'[i],min:-2,max:2,step:.1,value:Wt[i],fmt:v=>sfmt(v,1),onInput:v=>{Wt[i]=v;update()}}));
+  });
+  const ctlB=slider($('#ctlB'),{id:'nb',label:'b',min:-3,max:3,step:.1,value:B,fmt:v=>sfmt(v,1),onInput:v=>{B=v;update()}});
+  const actSeg=seg($('#actSeg'),'nact',Object.keys(ACTS).map(k=>[k,ACTS[k].name]),key,v=>{key=v;update()});
+
+  function fireWord(y){
+    const t=key==='tanh'?(y+1)/2:key==='relu'?Math.min(1,y/3):y;
+    return t<.1?'silent':t<.35?'faint':t<.65?'moderate':t<.9?'strong':'maxed out';
+  }
+  function update(){
+    const A=ACTS[key];
+    let z=B;X.forEach((x,i)=>{z+=x*Wt[i]});
+    const y=A.f(z);
+    edges.forEach((e,i)=>{
+      const w=Wt[i],col=w>=0?'#38bdf8':'#fb923c',op=clamp(.25+Math.abs(w*X[i])*.5,.2,1);
+      e.base.setAttribute('stroke',col);e.base.setAttribute('stroke-width',(1.5+Math.abs(w)*3.2).toFixed(1));e.base.setAttribute('stroke-dasharray',w<0?'8 5':'none');e.base.setAttribute('opacity',op.toFixed(2));
+      e.fl.setAttribute('stroke','#fff');e.fl.setAttribute('stroke-width',2);e.fl.setAttribute('opacity',Math.abs(w*X[i])<.04?0:clamp(.2+Math.abs(w*X[i])*.5,.2,.9).toFixed(2));
+      e.lab.textContent=sfmt(w,1);
+      inTxt[i].textContent=X[i].toFixed(2);
+    });
+    const bc=B>=0?'#38bdf8':'#fb923c';
+    bEdge.setAttribute('stroke',bc);bEdge.setAttribute('stroke-width',(1.5+Math.abs(B)*1.6).toFixed(1));bEdge.setAttribute('stroke-dasharray',B<0?'8 5':'none');bEdge.setAttribute('opacity','.8');
+    bFlow.setAttribute('stroke','#fff');bFlow.setAttribute('stroke-width',2);bFlow.setAttribute('opacity',Math.abs(B)<.05?0:.6);
+    bTxt.textContent=sfmt(B,1);
+    zTxt.textContent='z = '+fmt(z);
+    actTitle.textContent='activation · '+A.name;
+    const ix=BOX.x+10,iy=BOX.y+10,iw=BOX.w-20,ih=BOX.h-20,zeroY=iy+ih-(0-A.y[0])/(A.y[1]-A.y[0])*ih;
+    ax.setAttribute('d',`M${ix},${zeroY} H${ix+iw} M${ix+iw/2},${iy} V${iy+ih}`);
+    curve.setAttribute('d',curvePath(key,ix,iy,iw,ih,60));
+    const zc=clamp(z,-6,6),yc=clamp(A.f(zc),A.y[0],A.y[1]);
+    marker.setAttribute('cx',ix+(zc+6)/12*iw);marker.setAttribute('cy',iy+ih-(yc-A.y[0])/(A.y[1]-A.y[0])*ih);
+    const t=key==='tanh'?(y+1)/2:key==='relu'?Math.min(1,y/3):y;
+    outC.setAttribute('fill',rgb(key==='tanh'?divColor(t):seqColor(t)));
+    outT.textContent=fmt(y);
+    const terms=X.map((x,i)=>`<span class="${x*Wt[i]>=0?'p':'n'}">(${x.toFixed(2)}×${fmt(Wt[i],1)})</span>`).join(' + ');
+    eq.innerHTML=`<div>z = ${terms} + <span class="${B>=0?'p':'n'}">(${fmt(B,1)} bias)</span></div><div>&nbsp;&nbsp;&nbsp;= <b>${fmt(z)}</b></div><div>output = ${A.sym}(${fmt(z)}) = <b>${fmt(y)}</b> → output strength: <b>${fireWord(y)}</b></div>`;
+  }
+  $('#neuronReset').addEventListener('click',()=>{X=DEF.x.slice();Wt=DEF.w.slice();B=DEF.b;key=DEF.act;X.forEach((v,i)=>ctlX[i].set(v));Wt.forEach((v,i)=>ctlW[i].set(v));ctlB.set(B);actSeg.set(key);update()});
+  $('#neuronRand').addEventListener('click',()=>{
+    const r=(a,b,s)=>Math.round((a+Math.random()*(b-a))/s)*s;
+    X=X.map(()=>r(0,1,.01));Wt=Wt.map(()=>r(-2,2,.1));B=r(-2,2,.1);
+    X.forEach((v,i)=>ctlX[i].set(v));Wt.forEach((v,i)=>ctlW[i].set(v));ctlB.set(B);update();
+  });
+  update();
+
+  // activation gallery
+  const gal=[
+    ['sigmoid','1 / (1 + e⁻ᶻ)','Squashes any number into 0–1, so it reads as a probability. Classic for a final yes/no neuron.'],
+    ['relu','max(0, z)','Silent for negatives, passes positives straight through. Cheap, and a common default inside deep networks.'],
+    ['tanh','(eᶻ − e⁻ᶻ) / (eᶻ + e⁻ᶻ)','Squashes into −1…+1, centred on zero. Smooth, so gradients flow. Used in the playground below.'],
+    ['step','1 if z ≥ 0, else 0','The original all-or-nothing perceptron. Its slope is zero almost everywhere, so gradient descent has nothing to follow.']
+  ];
+  const host=$('#actGallery');
+  gal.forEach(([k,f,txt])=>{
+    const card=document.createElement('div');card.className='act-card';
+    const s=svgEl('svg',{viewBox:'0 0 140 70',role:'img','aria-label':ACTS[k].name+' activation curve'},card);
+    svgEl('path',{d:'M6,'+(35)+' H134 M70,4 V66',stroke:'#334155','stroke-width':1,fill:'none'},s);
+    svgEl('path',{d:curvePath(k,8,6,124,58,50),fill:'none',stroke:'#a78bfa','stroke-width':2.5,'stroke-linejoin':'round'},s);
+    const h=document.createElement('h3');h.textContent=ACTS[k].name;
+    const c=document.createElement('code');c.textContent=f;
+    const p=document.createElement('p');p.textContent=txt;
+    card.append(h,c,p);host.appendChild(card);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   2 · Layers + forward pass
+   ═══════════════════════════════════════════════════════════════════ */
+safe('layers',()=>{
+  const sizes=[3,5,4,3],L=sizes.length-1,classes=['A','B','C'];
+  let seed=11;const net=new MLP(sizes,{hidden:'tanh',out:'softmax',rng:mulberry32(seed)});
+  const inp=[.8,-.4,.5];let shown=L,sel={l:1,j:0},timer=0;
+  const S=$('#layerSvg'),colX=[70,240,410,580],yOf=(l,j)=>205+(j-(sizes[l]-1)/2)*62,R=19;
+  ['Input','Hidden 1','Hidden 2','Output'].forEach((n,l)=>svgEl('text',{x:colX[l],y:26,'text-anchor':'middle',class:'lbl'},S).textContent=n);
+  const gE=svgEl('g',{},S),gN=svgEl('g',{},S);
+  const E=[];
+  for(let l=0;l<L;l++)for(let j=0;j<sizes[l+1];j++)for(let i=0;i<sizes[l];i++)
+    E.push({l,i,j,el:svgEl('line',{x1:colX[l]+R,y1:yOf(l,i),x2:colX[l+1]-R,y2:yOf(l+1,j),'stroke-linecap':'round'},gE)});
+  const N=sizes.map((n,l)=>Array.from({length:n},(_,j)=>{
+    const g=svgEl('g',{class:'node',tabindex:0,role:'button',transform:`translate(${colX[l]} ${yOf(l,j)})`},gN);
+    const c=svgEl('circle',{r:R},g),t=svgEl('text',{y:4,'text-anchor':'middle',class:'val'},g);
+    g.addEventListener('click',()=>select(l,j));
+    g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(l,j)}});
+    return{g,c,t};
+  }));
+  const bars=classes.map((n,j)=>{
+    const y=yOf(L,j);
+    svgEl('rect',{x:625,y:y-10,width:100,height:20,rx:5,fill:'#0b1222',stroke:'#334155'},S);
+    const f=svgEl('rect',{x:625,y:y-10,width:0,height:20,rx:5,fill:'#38bdf8',opacity:.85},S);
+    svgEl('text',{x:631,y:y+4,class:'val'},S).textContent=n;
+    const pt=svgEl('text',{x:731,y:y+4,class:'lbl','font-family':'monospace'},S);
+    return{f,pt};
+  });
+  const nodeName=(l,j)=>l===0?'f'+(j+1):l===L?'Output '+classes[j]:`H${l}.${j+1}`;
+  function select(l,j){sel={l,j};render()}
+  function render(){
+    net.forward(inp);
+    E.forEach(({l,i,j,el})=>{
+      const w=net.W[l][j*sizes[l]+i],a=net.a[l][i],vis=l+1<=shown,s=Math.abs(w*a);
+      let op=vis?clamp(.14+s*.9,.1,.95):.04,wd=.6+Math.abs(w)*2.4;
+      if(sel.l===l+1){if(sel.j===j){op=Math.max(op,.8);wd+=1}else op*=.35}
+      el.setAttribute('stroke',w>=0?'#38bdf8':'#fb923c');el.setAttribute('stroke-width',wd.toFixed(1));
+      el.setAttribute('stroke-dasharray',w<0?'6 4':'none');el.setAttribute('opacity',op.toFixed(2));
+    });
+    N.forEach((row,l)=>row.forEach(({g,c,t},j)=>{
+      const v=net.a[l][j],vis=l<=shown;
+      c.setAttribute('fill',vis?rgb(l===L?seqColor(v):divColor((v+1)/2)):'#1e293b');
+      t.textContent=vis?(l===L?Math.round(v*100)+'%':fmt(v)):'·';
+      g.classList.toggle('sel',sel.l===l&&sel.j===j);
+      g.setAttribute('aria-label',`${nodeName(l,j)}, value ${vis?fmt(v):'not computed yet'}. Press Enter to inspect.`);
+      g.setAttribute('aria-pressed',sel.l===l&&sel.j===j);
+    }));
+    bars.forEach((b,j)=>{const p=net.a[L][j],vis=shown>=L;b.f.setAttribute('width',vis?(p*100).toFixed(1):0);b.pt.textContent=vis?Math.round(p*100)+'%':''});
+    inspect();
+  }
+  function inspect(){
+    const box=$('#layerInspect'),{l,j}=sel;box.textContent='';
+    const h=document.createElement('h4');box.appendChild(h);
+    if(l===0){h.textContent=`Input ${nodeName(l,j)}`;const p=document.createElement('p');p.className='mini';p.innerHTML=`The raw value you set with the slider: <b>${fmt(inp[j])}</b>. Input neurons just hand numbers to the first layer.`;box.appendChild(p);return}
+    h.textContent=(l===L?`Output neuron ${classes[j]}`:`Hidden layer ${l}, neuron ${j+1}`)+' · how it was computed';
+    const fi=sizes[l-1];let z=net.b[l-1][j],rows='';
+    for(let i=0;i<fi;i++){const w=net.W[l-1][j*fi+i],a=net.a[l-1][i],c=w*a;z+=c;rows+=`<tr><td>${nodeName(l-1,i)}</td><td>${fmt(a)}</td><td>× ${fmt(w)}</td><td class="${c>=0?'p':'n'}">${sfmt(c)}</td></tr>`}
+    rows+=`<tr><td>bias</td><td></td><td></td><td class="${net.b[l-1][j]>=0?'p':'n'}">${sfmt(net.b[l-1][j])}</td></tr>`;
+    const tbl=document.createElement('table');tbl.innerHTML=`<tbody>${rows}</tbody>`;box.appendChild(tbl);
+    const s=document.createElement('div');s.className='sum';
+    s.innerHTML=l===L?`z = <b>${fmt(z)}</b><br>softmax turns the three z’s into shares of 100%:<br>p = e<sup>z</sup> / Σe<sup>z</sup> = <b>${Math.round(net.a[L][j]*100)}%</b>`:`z = <b>${fmt(z)}</b><br>tanh(z) = <b>${fmt(net.a[l][j])}</b>`;
+    box.appendChild(s);
+  }
+  const ctl=$('#ctlLayerIn'),ctls=[];
+  inp.forEach((v,i)=>ctls.push(slider(ctl,{id:'li'+i,label:'f'+(i+1),min:-1,max:1,step:.05,value:v,fmt:x=>sfmt(x,2),onInput:x=>{inp[i]=x;shown=L;clearTimeout(timer);render()}})));
+  $('#layerShuffle').addEventListener('click',()=>{seed=Math.floor(Math.random()*1e6);net.rng=mulberry32(seed);net.init();shown=L;clearTimeout(timer);render()});
+  $('#layerPlay').addEventListener('click',()=>{
+    clearTimeout(timer);
+    if(reduceMotion){shown=L;render();return}
+    shown=0;render();let k=0;
+    (function next(){timer=setTimeout(()=>{if(++k<=L){shown=k;render();next()}},650)})();
+  });
+  render();
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   3a · Gradient descent on one dial
+   ═══════════════════════════════════════════════════════════════════ */
+safe('gd',()=>{
+  const S=$('#gdSvg'),VBW=640,VBH=300,P={l:50,r:18,t:16,b:42},D0=-2,D1=6,Y0=0,Y1=9;
+  const sx=w=>P.l+(w-D0)/(D1-D0)*(VBW-P.l-P.r),sy=v=>VBH-P.b-(v-Y0)/(Y1-Y0)*(VBH-P.t-P.b);
+  const land={
+    smooth:{f:w=>.5*(w-2)**2+.4,d:w=>w-2},
+    bumpy:{f:w=>.4*(w-2)**2+.8*Math.sin(2.2*w)+1,d:w=>.8*(w-2)+1.76*Math.cos(2.2*w)}
+  };
+  let mode='smooth',lr=.2,w=-1.5,startW=-1.5,steps=0,flips=0,prevG=null,done='',trail=[],auto=0;
+  const defs=svgEl('defs',{},S),mk=svgEl('marker',{id:'gArr',viewBox:'0 0 10 10',refX:'8',refY:'5',markerWidth:'4.5',markerHeight:'4.5',orient:'auto'},defs);
+  svgEl('path',{d:'M0 0L10 5L0 10z',fill:'#fbbf24'},mk);
+  // axes
+  svgEl('path',{d:`M${P.l},${P.t} V${VBH-P.b} H${VBW-P.r}`,stroke:'#475569','stroke-width':1.5,fill:'none'},S);
+  for(let t=-2;t<=6;t+=2){svgEl('text',{x:sx(t),y:VBH-P.b+18,'text-anchor':'middle',class:'lbl'},S).textContent=t;svgEl('line',{x1:sx(t),x2:sx(t),y1:VBH-P.b,y2:VBH-P.b+4,stroke:'#475569'},S)}
+  svgEl('text',{x:(P.l+VBW-P.r)/2,y:VBH-6,'text-anchor':'middle',class:'lbl'},S).textContent='weight w →';
+  svgEl('text',{transform:`translate(14 ${(P.t+VBH-P.b)/2}) rotate(-90)`,'text-anchor':'middle',class:'lbl'},S).textContent='loss ↑';
+  const curve=svgEl('path',{fill:'none',stroke:'#a78bfa','stroke-width':3,'stroke-linejoin':'round'},S);
+  const gTrail=svgEl('g',{},S),tang=svgEl('line',{stroke:'#fbbf24','stroke-width':2,'stroke-dasharray':'5 4'},S);
+  const jump=svgEl('line',{stroke:'#fbbf24','stroke-width':3,'marker-end':'url(#gArr)'},S);
+  const ball=svgEl('circle',{r:9,fill:'#fbbf24',stroke:'#0f172a','stroke-width':2.5},S);
+  const hit=svgEl('rect',{x:P.l,y:P.t,width:VBW-P.l-P.r,height:VBH-P.t-P.b,fill:'transparent',style:'cursor:crosshair'},S);
+  const tiles=$('#gdTiles'),msg=$('#gdMsg');
+  tiles.innerHTML=['weight w','loss L(w)','slope','next move'].map((t,i)=>`<div class="tile-stat"><span>${t}</span><b id="gt${i}"></b></div>`).join('');
+  const T=i=>$('#gt'+i);
+
+  function drawCurve(){
+    const pts=[];for(let i=0;i<=240;i++){const x=D0+(D1-D0)*i/240;pts.push(sx(x).toFixed(1)+','+sy(land[mode].f(x)).toFixed(1))}
+    curve.setAttribute('d','M'+pts.join(' L'));
+  }
+  function render(){
+    const F=land[mode],g=F.d(w),v=F.f(w),wn=w-lr*g;
+    ball.setAttribute('cx',sx(w));ball.setAttribute('cy',sy(v));
+    const a=sx(w-.55),b=sx(w+.55),ya=sy(v-.55*g),yb=sy(v+.55*g);
+    tang.setAttribute('x1',a);tang.setAttribute('y1',ya);tang.setAttribute('x2',b);tang.setAttribute('y2',yb);
+    const tx=sx(clamp(wn,D0,D1));
+    jump.setAttribute('x1',sx(w));jump.setAttribute('x2',Math.abs(tx-sx(w))<3?sx(w):tx-(tx>sx(w)?10:-10));jump.setAttribute('y1',sy(v)-18);jump.setAttribute('y2',sy(v)-18);
+    jump.setAttribute('opacity',done||Math.abs(tx-sx(w))<12?0:.95);
+    gTrail.textContent='';trail.slice(-40).forEach((t,i,arr)=>svgEl('circle',{cx:sx(t),cy:sy(F.f(t)),r:4,fill:'#fbbf24',opacity:(.15+.5*(i+1)/arr.length).toFixed(2)},gTrail));
+    T(0).textContent=fmt(w,2);T(1).textContent=fmt(v,2);T(2).textContent=sfmt(g,2);T(3).textContent=done?'–':sfmt(-lr*g,2);
+    let m;
+    if(done==='diverged')m='✗ Diverged: the step was so big the ball flew off the hill. The learning rate is too high.';
+    else if(done==='converged')m=`✓ Settled at w = ${fmt(w,2)} where the slope is about zero (loss ${fmt(v,2)}).`+(mode==='bumpy'?' Drop the ball somewhere else: it may settle in a different dip (a local minimum).':'');
+    else if(steps===0)m='Press Step (or Auto-run) to take the first downhill step. The amber arrow previews the next move.';
+    else if(flips>=3)m='↔ Overshooting: each step jumps past the bottom and back. A smaller learning rate would settle more smoothly.';
+    else m=`Step ${steps}: slope ${sfmt(g,2)} → move ${sfmt(-lr*g,2)}. Still descending…`;
+    msg.textContent=m;
+  }
+  function step(){
+    if(done)return false;
+    const g=land[mode].d(w);
+    if(prevG!==null&&Math.sign(g)!==Math.sign(prevG)&&Math.abs(g)>.05)flips++;else flips=Math.max(0,flips-1);
+    if(Math.abs(g)<.02){done='converged';render();return false}
+    prevG=g;trail.push(w);w=w-lr*g;steps++;
+    if(!isFinite(w)||w<D0||w>D1){w=clamp(isFinite(w)?w:0,D0,D1);done='diverged'}
+    else if(Math.abs(land[mode].d(w))<.02)done='converged';
+    render();return !done;
+  }
+  function reset(nw){w=startW=nw;steps=0;flips=0;prevG=null;done='';trail=[];stopAuto();render()}
+  function stopAuto(){clearInterval(auto);auto=0;$('#gdAuto').setAttribute('aria-pressed','false');$('#gdAuto').textContent='Auto-run'}
+  $('#gdStep').addEventListener('click',()=>{stopAuto();if(done)reset(startW);step()});
+  $('#gdAuto').addEventListener('click',()=>{
+    if(auto){stopAuto();return}
+    if(done)reset(startW);
+    $('#gdAuto').setAttribute('aria-pressed','true');$('#gdAuto').textContent='Pause';
+    let n=0;auto=setInterval(()=>{if(!step()||++n>200)stopAuto()},320);
+  });
+  $('#gdDrop').addEventListener('click',()=>reset(+(D0+.3+Math.random()*(D1-D0-.6)).toFixed(2)));
+  hit.addEventListener('pointerdown',e=>{const r=S.getBoundingClientRect(),vx=(e.clientX-r.left)/r.width*VBW;reset(+clamp(D0+(vx-P.l)/(VBW-P.l-P.r)*(D1-D0),D0+.05,D1-.05).toFixed(2))});
+  slider($('#ctlLR'),{id:'gdlr',label:'Learning rate',min:.02,max:2.2,step:.02,value:lr,fmt:v=>v.toFixed(2),onInput:v=>{lr=v;flips=0;prevG=null;if(done)reset(startW);else render()}});
+  seg($('#landSeg'),'land',[['smooth','Smooth bowl'],['bumpy','Bumpy (like real nets)']],mode,v=>{mode=v;drawCurve();reset(-1.5)});
+  drawCurve();render();
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   4 · Backprop worked example
+   ═══════════════════════════════════════════════════════════════════ */
+safe('backprop',()=>{
+  const S={x:1,t:.8,w1:.5,w2:-.6,lr:.5,phase:0,iter:0,hist:[],f:null,g:null,old:null,auto:0};
+  const chain=$('#chain'),cap=$('#bpCaption');
+  const fwd=()=>{const z=S.w1*S.x,h=Math.tanh(z),y=S.w2*h;return{z,h,y,L:.5*(y-S.t)**2}};
+  const bwd=f=>{const dy=f.y-S.t,dw2=dy*f.h,dh=dy*S.w2,dz=dh*(1-f.h*f.h);return{dy,dw2,dh,dz,dw1:dz*S.x}};
+  $('#bpX').textContent=fmt(S.x);$('#bpT').textContent=fmt(S.t);
+  function resetAll(){stop();Object.assign(S,{w1:.5,w2:-.6,phase:0,iter:0,f:null,g:null,old:null});S.hist=[fwd().L];draw()}
+  function next(){
+    const p=S.phase;
+    if(p===0||p===4){if(p===4)S.iter++;S.phase=1;S.f=fwd();S.g=null;S.old=null}
+    else if(p===1)S.phase=2;
+    else if(p===2){S.phase=3;S.g=bwd(S.f)}
+    else if(p===3){S.phase=4;S.old={w1:S.w1,w2:S.w2};S.w1-=S.lr*S.g.dw1;S.w2-=S.lr*S.g.dw2;S.hist.push(fwd().L)}
+    draw();
+  }
+  function stop(){clearInterval(S.auto);S.auto=0;const b=$('#bpAuto');b.setAttribute('aria-pressed','false');b.textContent='Auto-train'}
+  function draw(){
+    const f=S.f,g=S.g,ph=S.phase;
+    chain.classList.toggle('show-fwd',ph>=1);chain.classList.toggle('show-loss',ph>=2);chain.classList.toggle('show-bwd',ph>=3);
+    const set=(id,t)=>{$(id).innerHTML=t};
+    const W1=$('#bpW1'),W2=$('#bpW2');
+    W1.innerHTML='w₁ = '+fmt(S.w1,3);W2.innerHTML='w₂ = '+fmt(S.w2,3);
+    W1.classList.toggle('changed',ph===4);W2.classList.toggle('changed',ph===4);
+    if(f){set('#fz','z = '+fmt(f.z,3));set('#fh','h = '+fmt(f.h,3));set('#fy','ŷ = '+fmt(f.y,3));set('#fl','L = '+fmt(f.L,3))}
+    else{['#fz','#fh','#fy','#fl'].forEach(i=>set(i,'&nbsp;'))}
+    if(g){set('#bdz','∂L/∂z = '+sfmt(g.dz,3));set('#bdw1','∂L/∂w₁ = '+sfmt(g.dw1,3));set('#bdh','∂L/∂h = '+sfmt(g.dh,3));set('#bdy','∂L/∂ŷ = '+sfmt(g.dy,3));set('#bdw2','∂L/∂w₂ = '+sfmt(g.dw2,3))}
+    else{['#bdz','#bdw1','#bdh','#bdy','#bdw2'].forEach(i=>set(i,'&nbsp;'))}
+    let c='';
+    if(ph===0)c='Press <b>Next step</b>. We’ll run one full training iteration on this tiny network, one phase at a time.';
+    else if(ph===1)c=`<b>① Forward pass.</b> z = w₁·x = ${fmt(S.w1,3)}×${fmt(S.x)} = ${fmt(f.z,3)}; h = tanh(z) = ${fmt(f.h,3)}; ŷ = w₂·h = ${fmt(S.w2,3)}×${fmt(f.h,3)} = <b>${fmt(f.y,3)}</b>. The network guessed ${fmt(f.y,3)}, but we wanted ${fmt(S.t)}.`;
+    else if(ph===2)c=`<b>② Loss.</b> L = ½(ŷ − t)² = ½(${fmt(f.y,3)} − ${fmt(S.t)})² = <b>${fmt(f.L,3)}</b>. One number for “how wrong”. Training’s whole job is to push it toward 0.`;
+    else if(ph===3)c=`<b>③ Backward pass</b>, from the loss leftwards, multiplying local slopes (the chain rule).<br><code>∂L/∂ŷ = ŷ − t = ${sfmt(g.dy,3)}</code> → <code>∂L/∂w₂ = ∂L/∂ŷ × h = ${sfmt(g.dw2,3)}</code>, <code>∂L/∂h = ∂L/∂ŷ × w₂ = ${sfmt(g.dh,3)}</code> → <code>∂L/∂z = ∂L/∂h × (1 − h²) = ${sfmt(g.dz,3)}</code> → <code>∂L/∂w₁ = ∂L/∂z × x = ${sfmt(g.dw1,3)}</code>.<br>A <em>negative</em> gradient means raising that dial would lower the loss; positive means lower it.`;
+    else c=`<b>④ Update.</b> w ← w − lr × gradient (lr = ${S.lr.toFixed(2)}). w₁: ${fmt(S.old.w1,3)} → <b>${fmt(S.w1,3)}</b>; w₂: ${fmt(S.old.w2,3)} → <b>${fmt(S.w2,3)}</b>. Loss falls from ${fmt(f.L,3)} to <b>${fmt(fwd().L,3)}</b>. Press Next to go around again.`;
+    cap.innerHTML=c;$('#bpIter').textContent=S.iter+(ph===4?1:0);
+    // sparkline
+    const sp=$('#bpSpark');sp.textContent='';const SW=sp.clientWidth||400;sp.setAttribute('viewBox',`0 0 ${SW} 56`);
+    const h=S.hist,mx=Math.max(...h,.01);
+    const pts=h.map((v,i)=>[h.length===1?6:6+i/(h.length-1)*(SW-12),50-(v/mx)*42]);
+    svgEl('path',{d:`M6,52 H${SW-6}`,stroke:'#334155',fill:'none','stroke-width':1},sp);
+    if(pts.length>1)svgEl('polyline',{points:pts.map(p=>p.join(',')).join(' '),fill:'none',stroke:'#38bdf8','stroke-width':2.5,'stroke-linejoin':'round'},sp);
+    pts.slice(-1).forEach(p=>svgEl('circle',{cx:p[0],cy:p[1],r:4,fill:'#fbbf24'},sp));
+  }
+  $('#bpNext').addEventListener('click',()=>{stop();next()});
+  $('#bpReset').addEventListener('click',resetAll);
+  $('#bpAuto').addEventListener('click',()=>{
+    if(S.auto){stop();return}
+    const b=$('#bpAuto');b.setAttribute('aria-pressed','true');b.textContent='Pause';
+    let n=0;S.auto=setInterval(()=>{next();if(++n>240)stop()},reduceMotion?500:650);
+  });
+  slider($('#ctlBpLR'),{id:'bplr',label:'Learning rate',min:.05,max:1.5,step:.05,value:S.lr,fmt:v=>v.toFixed(2),onInput:v=>{S.lr=v;draw()}});
+  resetAll();
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   5 · Playground
+   ═══════════════════════════════════════════════════════════════════ */
+safe('playground',()=>{
+  const cvMap=$('#pgMap'),cvNet=$('#pgNet'),cvChart=$('#pgChart');
+  const cm=cvMap.getContext('2d'),cn=cvNet.getContext('2d'),cc=cvChart.getContext('2d');
+  const G=44,hm=document.createElement('canvas');hm.width=hm.height=G;const hmx=hm.getContext('2d'),himg=hmx.createImageData(G,G);
+  const M=12,mm=document.createElement('canvas');mm.width=mm.height=M;const mmx=mm.getContext('2d');
+  const LUT=Array.from({length:256},(_,i)=>divColor(i/255));
+  const cfg={ds:'circle',width:6,depth:2,act:'tanh',lr:.03,speed:6,batch:16};
+  let train,test,net,order=[],pos=0,samples=0,hist={tr:[],te:[]},playing=false,inView=false,raf=0,imgs=[],netH=260,autoStarted=false,dataSeed=1;
+  const xy=[0,0];
+
+  function shuffle(){order=Array.from({length:train.length},(_,i)=>i);for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]]}pos=0}
+  function build(newData){
+    if(newData||!train){dataSeed=Math.floor(Math.random()*1e6)+1;const r=mulberry32(dataSeed);train=makeData(cfg.ds,200,r);test=makeData(cfg.ds,100,r)}
+    const sizes=[2,...Array(cfg.depth).fill(cfg.width),1];
+    net=new MLP(sizes,{hidden:cfg.act,out:'sigmoid',rng:mulberry32(Math.floor(Math.random()*1e6)+1)});
+    imgs=sizes.map(n=>Array.from({length:n},()=>mmx.createImageData(M,M)));
+    samples=0;hist={tr:[],te:[]};shuffle();
+    netH=Math.max(260,Math.max(...sizes)*(nodeSize()+12)+44);
+    $('#sParams').textContent=$('#paramLive').textContent=net.paramCount();
+    layout();record();drawAll();
+    say(`Network reset: ${cfg.depth} hidden layer${cfg.depth>1?'s':''} of ${cfg.width} neurons, ${cfg.act} activation, ${cfg.ds} data.`);
+  }
+  const nodeSize=()=>cvNet.clientWidth<420?26:34;
+  function layout(){const w=cvMap.clientWidth;fitCanvas(cvMap,w,w);fitCanvas(cvNet,cvNet.clientWidth,netH);fitCanvas(cvChart,cvChart.clientWidth,150)}
+  function say(t){$('#pgStatus').textContent=t}
+
+  function stepBatch(){
+    net.zeroGrad();
+    for(let k=0;k<cfg.batch;k++){
+      if(pos>=order.length)shuffle();
+      const p=train[order[pos++]];xy[0]=p.x;xy[1]=p.y;net.accumulate(xy,p.c);
+    }
+    net.adam(cfg.lr,cfg.batch);samples+=cfg.batch;
+  }
+  function record(){
+    const a=net.evaluate(train),b=net.evaluate(test);
+    hist.tr.push(a.loss);hist.te.push(b.loss);
+    if(hist.tr.length>500){hist.tr=hist.tr.filter((_,i)=>i%2===0);hist.te=hist.te.filter((_,i)=>i%2===0)}
+    $('#sEpoch').textContent=Math.floor(samples/train.length);
+    $('#sTrL').textContent=a.loss.toFixed(3);$('#sTeL').textContent=b.loss.toFixed(3);
+    $('#sTrA').textContent=Math.round(a.acc*100)+'%';$('#sTeA').textContent=Math.round(b.acc*100)+'%';
+  }
+
+  function drawMap(){
+    const W=cvMap.clientWidth;let k=0;
+    for(let gy=0;gy<G;gy++){const y=1-(gy+.5)/G*2;for(let gx=0;gx<G;gx++){xy[0]=(gx+.5)/G*2-1;xy[1]=y;const c=LUT[Math.round(net.forward(xy)[0]*255)];himg.data[k++]=c[0];himg.data[k++]=c[1];himg.data[k++]=c[2];himg.data[k++]=255}}
+    hmx.putImageData(himg,0,0);cm.imageSmoothingEnabled=true;cm.drawImage(hm,0,0,W,W);
+    const pt=(p,hollow)=>{
+      const px=(p.x+1)/2*W,py=(1-p.y)/2*W,r=hollow?4.2:3.6;
+      cm.lineWidth=hollow?2:1.4;cm.strokeStyle=hollow?(p.c?'#bae6fd':'#fed7aa'):'#fff';cm.fillStyle=p.c?'#38bdf8':'#fb923c';
+      cm.beginPath();
+      if(p.c)cm.arc(px,py,r,0,6.283);else cm.rect(px-r,py-r,r*2,r*2);
+      if(!hollow)cm.fill();cm.stroke();
+    };
+    train.forEach(p=>pt(p,false));test.forEach(p=>pt(p,true));
+  }
+
+  function drawNet(){
+    const Wc=cvNet.clientWidth,Hc=netH,sizes=net.sizes,cols=sizes.length,L=cols-1,s=nodeSize();
+    cn.clearRect(0,0,Wc,Hc);
+    const padX=s/2+18,top=30,avail=Hc-top-8;
+    const px=l=>padX+l*(Wc-2*padX)/(cols-1),py=(l,j)=>top+avail/sizes[l]*(j+.5);
+    // edges
+    for(let l=0;l<L;l++){
+      const fi=sizes[l],fo=sizes[l+1];
+      for(let j=0;j<fo;j++)for(let i=0;i<fi;i++){
+        const w=net.W[l][j*fi+i];
+        cn.lineWidth=.4+Math.min(Math.abs(w),3)*1.3;cn.strokeStyle=w>=0?'rgba(56,189,248,.5)':'rgba(251,146,60,.5)';cn.setLineDash(w<0?[4,3]:[]);
+        cn.beginPath();cn.moveTo(px(l)+s/2,py(l,i));cn.lineTo(px(l+1)-s/2,py(l+1,j));cn.stroke();
+      }
+    }
+    cn.setLineDash([]);
+    // per-neuron response maps
+    for(let gy=0;gy<M;gy++){const y=1-(gy+.5)/M*2;for(let gx=0;gx<M;gx++){
+      xy[0]=(gx+.5)/M*2-1;xy[1]=y;net.forward(xy);const k=(gy*M+gx)*4;
+      for(let l=0;l<cols;l++)for(let j=0;j<sizes[l];j++){
+        const v=net.a[l][j],t=l===L?v:(l===0||net.hidden==='tanh')?(v+1)/2:.5+.5*Math.tanh(v),c=divColor(t),d=imgs[l][j].data;
+        d[k]=c[0];d[k+1]=c[1];d[k+2]=c[2];d[k+3]=255;
+      }}}
+    cn.imageSmoothingEnabled=true;
+    for(let l=0;l<cols;l++)for(let j=0;j<sizes[l];j++){
+      mmx.putImageData(imgs[l][j],0,0);
+      const x=px(l)-s/2,y=py(l,j)-s/2;
+      cn.drawImage(mm,x,y,s,s);cn.lineWidth=1;cn.strokeStyle='#64748b';cn.strokeRect(x+.5,y+.5,s-1,s-1);
+    }
+    cn.fillStyle='#94a3b8';cn.font='600 11px system-ui,sans-serif';cn.textAlign='center';
+    const names=['Input (x, y)',...Array.from({length:cfg.depth},(_,i)=>'Hidden '+(i+1)),'Output'];
+    names.forEach((n,l)=>cn.fillText(n,px(l),16));
+    // input axis hints
+    cn.font='10px system-ui,sans-serif';cn.textAlign='right';
+    cn.fillText('x',px(0)-s/2-4,py(0,0)+3);cn.fillText('y',px(0)-s/2-4,py(0,1)+3);
+  }
+
+  function drawChart(){
+    const W=cvChart.clientWidth,H=150,pl=34,pr=8,pt=10,pb=18;
+    cc.clearRect(0,0,W,H);
+    const all=hist.tr.concat(hist.te),ymax=clamp((Math.max(...all,.1))*1.08,.8,3);
+    const X=(i,n)=>pl+(n<=1?0:i/(n-1))*(W-pl-pr),Y=v=>pt+(1-clamp(v,0,ymax)/ymax)*(H-pt-pb);
+    cc.strokeStyle='#334155';cc.lineWidth=1;cc.fillStyle='#94a3b8';cc.font='10px system-ui,sans-serif';cc.textAlign='right';
+    [0,.5,1].forEach(f=>{const v=ymax*f,y=Y(v);cc.beginPath();cc.moveTo(pl,y);cc.lineTo(W-pr,y);cc.stroke();cc.fillText(v.toFixed(2),pl-4,y+3)});
+    cc.textAlign='center';cc.fillText('training time →',(pl+W-pr)/2,H-4);
+    const line=(arr,col,dash)=>{if(arr.length<2)return;cc.beginPath();arr.forEach((v,i)=>{const x=X(i,arr.length),y=Y(v);i?cc.lineTo(x,y):cc.moveTo(x,y)});cc.setLineDash(dash);cc.strokeStyle=col;cc.lineWidth=2;cc.stroke();cc.setLineDash([])};
+    line(hist.te,'#fb923c',[5,3]);line(hist.tr,'#38bdf8',[]);
+    cc.textAlign='right';cc.fillStyle='#38bdf8';cc.fillText('— train',W-pr-52,pt+10);cc.fillStyle='#fb923c';cc.fillText('- - test',W-pr,pt+10);
+  }
+  function drawAll(){drawMap();drawNet();drawChart()}
+
+  function loop(){
+    raf=0;
+    if(!playing||!inView||document.hidden)return;
+    for(let s=0;s<cfg.speed;s++)stepBatch();
+    record();drawAll();raf=requestAnimationFrame(loop);
+  }
+  function kick(){if(!raf&&playing&&inView)raf=requestAnimationFrame(loop)}
+  function setPlaying(p,announce){
+    playing=p;const b=$('#pgPlay');b.textContent=p?'⏸ Pause':'▶ Train';b.setAttribute('aria-pressed',p);
+    if(announce)say(p?'Training started.':`Training paused at epoch ${Math.floor(samples/train.length)}. Train accuracy ${$('#sTrA').textContent}, test accuracy ${$('#sTeA').textContent}.`);
+    kick();
+  }
+
+  // controls
+  const segs={};
+  segs.ds=seg($('#segData'),'pgds',[['circle','Circle'],['xor','XOR'],['blobs','Two blobs'],['spiral','Spiral']],cfg.ds,v=>{cfg.ds=v;build(true)});
+  segs.depth=seg($('#segDepth'),'pgdepth',[[1,'1'],[2,'2']],cfg.depth,v=>{cfg.depth=+v;build(false)});
+  segs.width=seg($('#segWidth'),'pgwidth',[[2,'2'],[4,'4'],[6,'6'],[8,'8']],cfg.width,v=>{cfg.width=+v;build(false)});
+  segs.act=seg($('#segAct'),'pgact',[['tanh','tanh'],['relu','ReLU'],['linear','linear (no bend)']],cfg.act,v=>{cfg.act=v;build(false)});
+  segs.speed=seg($('#segSpeed'),'pgspeed',[[2,'Slow'],[6,'Normal'],[24,'Fast']],cfg.speed,v=>{cfg.speed=+v});
+  const lrCtl=slider($('#ctlPgLR'),{id:'pglr',label:'Learning rate',min:-3,max:-.5,step:.05,value:Math.log10(cfg.lr),fmt:v=>Math.pow(10,v).toFixed(3),onInput:v=>{cfg.lr=Math.pow(10,v)}});
+  $('#pgPlay').addEventListener('click',()=>{autoStarted=true;setPlaying(!playing,true)});
+  $('#pgStep').addEventListener('click',()=>{setPlaying(false,false);const n=Math.ceil(train.length/cfg.batch);for(let i=0;i<n;i++)stepBatch();record();drawAll();say(`One epoch done. Train accuracy ${$('#sTrA').textContent}.`)});
+  $('#pgReinit').addEventListener('click',()=>build(false));
+  $('#pgNew').addEventListener('click',()=>build(true));
+  $$('#challenges button').forEach(b=>b.addEventListener('click',()=>{
+    const c=JSON.parse(b.dataset.cfg);Object.assign(cfg,c);
+    segs.ds.set(cfg.ds);segs.depth.set(cfg.depth);segs.width.set(cfg.width);segs.act.set(cfg.act);segs.speed.set(cfg.speed);lrCtl.set(Math.log10(cfg.lr));
+    build(true);autoStarted=true;setPlaying(true,true);
+    cvMap.scrollIntoView({behavior:reduceMotion?'auto':'smooth',block:'center'});
+  }));
+
+  // visibility gating: only animate while on screen
+  if('IntersectionObserver' in window){
+    new IntersectionObserver(es=>{
+      inView=es[0].isIntersecting;
+      if(inView&&!autoStarted&&!reduceMotion){autoStarted=true;setPlaying(true,false)}
+      else kick();
+    },{threshold:.15}).observe($('#playground .pg-main'));
+  }else inView=true;
+  document.addEventListener('visibilitychange',kick);
+  let rt;const onResize=()=>{clearTimeout(rt);rt=setTimeout(()=>{netH=Math.max(260,Math.max(...net.sizes)*(nodeSize()+12)+44);layout();drawAll()},120)};
+  addEventListener('resize',onResize);
+  setPlaying(false,false);build(true);
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   6 · Next-token probabilities + temperature
+   ═══════════════════════════════════════════════════════════════════ */
+safe('llm',()=>{
+  const toks=[['int',.48],['double',.27],['Zone',.14],['string',.06],['(anything else)',.05]];
+  let T=1,counts=toks.map(()=>0),p=[];
+  const host=$('#llmBars');
+  const rows=toks.map(([n])=>{
+    const r=document.createElement('div');r.className='bar-row';
+    r.innerHTML='<span class="name"></span><div class="bar-track"><div class="bar-fill"></div></div><span class="pct"></span>';
+    r.firstChild.textContent=n;host.appendChild(r);return r;
+  });
+  const probs=t=>{const l=toks.map(x=>Math.log(x[1])/t),m=Math.max(...l),e=l.map(v=>Math.exp(v-m)),s=e.reduce((a,b)=>a+b);return e.map(v=>v/s)};
+  function render(){
+    p=probs(T);const top=p.indexOf(Math.max(...p));
+    rows.forEach((r,i)=>{r.classList.toggle('top',i===top);$('.bar-fill',r).style.width=(p[i]*100).toFixed(1)+'%';$('.pct',r).textContent=(p[i]*100).toFixed(p[i]<.1?1:0)+'%'});
+    const tl=$('#llmTally');tl.textContent='';
+    const total=counts.reduce((a,b)=>a+b,0);
+    if(total){toks.forEach(([n],i)=>{if(counts[i]){const s=document.createElement('span');s.textContent=`${n} ×${counts[i]}`;tl.appendChild(s)}})}
+  }
+  const sample=()=>{let r=Math.random(),i=0;for(;i<p.length-1;i++){r-=p[i];if(r<0)break}return i};
+  const pickInto=i=>{$('#llmPicked').textContent=i===toks.length-1?'…':toks[i][0]};
+  slider($('#ctlTemp'),{id:'temp',label:'Temperature',min:.1,max:2,step:.05,value:T,fmt:v=>v.toFixed(2),onInput:v=>{T=v;counts=toks.map(()=>0);render()}});
+  $('#llmPick').addEventListener('click',()=>{const i=sample();counts[i]++;pickInto(i);render()});
+  $('#llmRoll').addEventListener('click',()=>{let i=0;for(let k=0;k<50;k++){i=sample();counts[i]++}pickInto(i);render()});
+  render();
+});
+</script>
+</body>
+</html>

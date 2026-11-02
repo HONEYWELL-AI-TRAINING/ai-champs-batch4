@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<title>Inside a Transformer: How an LLM Predicts the Next Token</title>
+<style>
+:root {
+    --bg: #0f172a;
+    --bg-deep: #0a1020;
+    --surface: #1e293b;
+    --surface-2: #263449;
+    --border: #334155;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --primary: #3498db;
+    /* one colour per stage of the pipeline */
+    --tok: #60a5fa;
+    --emb: #22d3ee;
+    --attn: #c084fc;
+    --mlp: #34d399;
+    --res: #fbbf24;
+    --out: #fb7185;
+    --r: 14px;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+body {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+}
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+a { color: #7dc4f5; }
+code { font-family: var(--mono); font-size: .88em; background: rgba(148,163,184,.14); padding: .08em .4em; border-radius: 5px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip { position: absolute; left: -999px; top: 8px; background: var(--primary); color: #fff; padding: .5rem 1rem; border-radius: 8px; z-index: 100; }
+.skip:focus { left: 8px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+
+/* ── progress + nav ─────────────────────────── */
+.progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 60; background: transparent; }
+.progress span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--tok), var(--emb), var(--attn), var(--mlp), var(--res), var(--out)); }
+.nav { position: sticky; top: 0; z-index: 50; background: rgba(10,16,32,.86); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
+.nav .wrap { display: flex; gap: .4rem; overflow-x: auto; padding-top: .55rem; padding-bottom: .55rem; scrollbar-width: none; }
+.nav .wrap::-webkit-scrollbar { display: none; }
+.nav a { flex: none; text-decoration: none; color: var(--muted); font-size: .85rem; padding: .3rem .8rem; border-radius: 999px; border: 1px solid transparent; }
+.nav a:hover { color: var(--text); border-color: var(--border); }
+.nav a.on { color: var(--text); background: var(--surface); border-color: var(--border); }
+.nav .home { margin-right: auto; font-weight: 700; color: var(--text); }
+
+/* ── hero ───────────────────────────────────── */
+.hero { position: relative; overflow: hidden; padding: 4.5rem 0 3rem; text-align: center;
+    background:
+      radial-gradient(900px 420px at 12% -10%, rgba(192,132,252,.24), transparent 60%),
+      radial-gradient(800px 420px at 92% 0%, rgba(34,211,238,.17), transparent 60%),
+      radial-gradient(700px 400px at 50% 120%, rgba(251,113,133,.14), transparent 60%),
+      linear-gradient(180deg, #111c33, var(--bg)); }
+.ribbon { position: absolute; top: 14px; left: 0; right: 0; overflow: hidden; opacity: .4; pointer-events: none;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent); mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent); }
+.ribbon-track { display: flex; gap: .5rem; width: max-content; animation: slide 70s linear infinite; }
+.ribbon-track span { font-family: var(--mono); font-size: .78rem; padding: .15rem .55rem; border-radius: 6px; border: 1px solid var(--border); color: var(--muted); background: rgba(30,41,59,.6); white-space: nowrap; }
+@keyframes slide { to { transform: translateX(-50%); } }
+.hero .eyebrow { color: var(--emb); }
+.hero h1 { font-size: clamp(2.3rem, 6vw, 4rem); line-height: 1.08; letter-spacing: -.02em; margin: .5rem 0 1rem;
+    background: linear-gradient(100deg, #fff 10%, var(--attn) 45%, var(--emb) 75%, var(--out)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero p.sub { max-width: 62ch; margin: 0 auto 1.6rem; color: var(--muted); font-size: 1.08rem; }
+.cta { display: flex; flex-wrap: wrap; gap: .7rem; justify-content: center; margin-bottom: 2rem; }
+.btn { font: inherit; font-size: .92rem; font-weight: 600; padding: .6rem 1.15rem; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: .4rem; transition: background .2s, border-color .2s, transform .2s; }
+.btn:hover { background: var(--surface-2); border-color: var(--muted); }
+.btn.hot { background: linear-gradient(100deg, #7c3aed, #0ea5e9); border-color: transparent; color: #fff; }
+.btn.hot:hover { transform: translateY(-1px); }
+.btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+.hero-fig { max-width: 780px; margin: 0 auto; }
+.hero-fig svg { width: 100%; height: auto; display: block; }
+.hero-fig .pill { fill: rgba(30,41,59,.92); stroke: var(--border); }
+.hero-fig .pill.q { stroke: var(--attn); fill: rgba(192,132,252,.2); }
+.hero-fig text { fill: var(--text); font-size: 15px; text-anchor: middle; font-family: var(--mono); }
+.arc { fill: none; stroke: var(--attn); stroke-linecap: round; stroke-dasharray: 7 9; animation: flow 2.4s linear infinite; }
+@keyframes flow { to { stroke-dashoffset: -32; } }
+.hero-cap { font-size: .8rem; color: var(--muted); margin-top: .4rem; }
+
+/* ── sections ───────────────────────────────── */
+section.block { padding: 4.5rem 0 .5rem; }
+.eyebrow { font-size: .74rem; letter-spacing: .15em; text-transform: uppercase; font-weight: 700; color: var(--c, var(--primary)); }
+h2 { font-size: clamp(1.6rem, 3.4vw, 2.3rem); line-height: 1.2; margin: .35rem 0 .7rem; letter-spacing: -.01em; }
+h3 { font-size: 1.1rem; line-height: 1.3; }
+.lede { color: var(--muted); max-width: 70ch; margin-bottom: 1.6rem; }
+.lede b { color: var(--text); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 1.25rem; }
+.viz-title { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-bottom: .6rem; }
+.note { color: var(--muted); font-size: .84rem; margin-top: .6rem; }
+.callout { border-left: 4px solid var(--c, var(--primary)); background: rgba(148,163,184,.08); border-radius: 0 10px 10px 0; padding: .8rem 1rem; font-size: .93rem; margin-top: 1rem; }
+.callout strong { color: var(--text); }
+.scrollx { overflow-x: auto; padding-bottom: 4px; }
+.s1 { --c: var(--tok); --cb: rgba(96,165,250,.14); --cb2: rgba(96,165,250,.28); }
+.s2 { --c: var(--emb); --cb: rgba(34,211,238,.13); --cb2: rgba(34,211,238,.27); }
+.s3 { --c: var(--attn); --cb: rgba(192,132,252,.15); --cb2: rgba(192,132,252,.3); }
+.s4 { --c: var(--mlp); --cb: rgba(52,211,153,.13); --cb2: rgba(52,211,153,.27); }
+.s5 { --c: var(--res); --cb: rgba(251,191,36,.07); --cb2: rgba(251,191,36,.16); }
+.s6 { --c: var(--out); --cb: rgba(251,113,133,.14); --cb2: rgba(251,113,133,.28); }
+
+/* ── journey ────────────────────────────────── */
+.stepper { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+.step-btn { display: inline-flex; align-items: center; gap: .5rem; font: inherit; font-size: .85rem; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: .38rem .85rem .38rem .4rem; cursor: pointer; transition: background .2s, border-color .2s; }
+.step-btn .num { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--c); color: #0b1120; font-weight: 800; font-size: .78rem; }
+.step-btn:hover { border-color: var(--c); }
+.step-btn[aria-pressed="true"] { background: var(--cb2); border-color: var(--c); }
+.journey-grid { display: grid; grid-template-columns: minmax(0, 460px) minmax(0, 1fr); gap: 2rem; align-items: start; }
+.arch-wrap { background: radial-gradient(circle at 50% 0%, rgba(192,132,252,.09), transparent 60%), var(--bg-deep); border: 1px solid var(--border); border-radius: var(--r); padding: .6rem; }
+#arch { width: 100%; height: auto; display: block; }
+.side { position: sticky; top: 64px; }
+.stage-panel { border-left: 4px solid var(--c); }
+.stage-panel .kicker { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--c); font-weight: 700; }
+.stage-panel h3 { font-size: 1.45rem; margin: .2rem 0 .7rem; }
+.io { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: .8rem; font-size: .84rem; color: var(--muted); }
+.io code { color: var(--text); background: var(--cb2); border: 1px solid var(--c); }
+.stage-panel p { margin-bottom: .75rem; }
+.stage-panel .why { background: rgba(148,163,184,.09); border-radius: 10px; padding: .65rem .85rem; font-size: .92rem; }
+.stage-panel .why b { color: var(--c); }
+.panel-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; align-items: center; }
+.panel-actions .btn { padding: .4rem .85rem; font-size: .84rem; }
+.panel-actions .spacer { flex: 1; }
+.differs { margin-top: 1rem; font-size: .88rem; }
+.differs ul { margin: .4rem 0 0 1.1rem; color: var(--muted); }
+.differs li { margin-bottom: .25rem; }
+.differs b { color: var(--text); }
+
+/* architecture svg */
+.stage { cursor: pointer; transition: opacity .3s; outline: none; }
+.stage rect.box { fill: var(--cb); stroke: var(--c); stroke-width: 1.5; transition: fill .2s; }
+.stage:hover rect.box { fill: var(--cb2); }
+.stage:focus-visible rect.box { stroke: #fff; stroke-width: 3; }
+.stage text { fill: var(--text); font-size: 12.5px; text-anchor: middle; pointer-events: none; }
+.stage text.sm { font-size: 10.5px; fill: var(--muted); }
+.stage text.mono { font-family: var(--mono); }
+.stage .badge { fill: var(--c); }
+.stage .bnum { fill: #0b1120; font-weight: 800; font-size: 11px; }
+.stage .plus { fill: var(--cb2); stroke: var(--c); stroke-width: 1.5; }
+.stage .plus-t { font-size: 17px; font-weight: 700; fill: var(--c); }
+.stage .head-sq { fill: var(--c); opacity: .75; }
+.stage .dot { fill: var(--c); opacity: .85; }
+.stage.sel rect.box { filter: drop-shadow(0 0 7px var(--c)); }
+.stage.sel rect.box { fill: var(--cb2); }
+#arch.has-sel .stage.dim { opacity: .42; }
+.wire { fill: none; stroke: #64748b; stroke-width: 1.8; }
+.skip-line { fill: none; stroke: var(--res); stroke-width: 2; stroke-dasharray: 6 6; animation: flow 1.6s linear infinite; }
+.loop-line { fill: none; stroke: var(--out); stroke-width: 2; stroke-dasharray: 6 6; animation: flow 1.8s linear infinite; }
+.block-box { fill: var(--cb) !important; stroke-dasharray: 7 5; }
+.lbl-res { fill: var(--res) !important; font-size: 10px !important; letter-spacing: .08em; }
+.lbl-out { fill: var(--out) !important; font-size: 10px !important; letter-spacing: .08em; }
+.packet circle.core { fill: #fff; }
+.packet circle.halo { fill: rgba(255,255,255,.2); }
+
+/* ── embeddings ─────────────────────────────── */
+.erows { min-width: 620px; display: grid; gap: 4px; }
+.erow { display: flex; align-items: center; gap: 10px; padding: 4px 8px; border-radius: 8px; transition: background .2s; }
+.erow:not(.head):hover { background: rgba(148,163,184,.1); }
+.erow .tkn { width: 104px; flex: none; }
+.erow .tid { width: 52px; flex: none; font-family: var(--mono); font-size: .78rem; color: var(--muted); }
+.erow .g { width: 118px; flex: none; display: flex; gap: 2px; }
+.erow .op { width: 14px; flex: none; text-align: center; color: var(--muted); font-weight: 700; }
+.erow.head { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.erow.head .g { display: block; }
+.chip { display: inline-block; font-family: var(--mono); font-size: .85rem; padding: .12rem .6rem; border-radius: 7px; background: rgba(96,165,250,.16); border: 1px solid var(--tok); color: var(--text); }
+.cell { width: 18px; height: 22px; border-radius: 4px; border: 1px solid rgba(148,163,184,.18); }
+.legend { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; font-size: .8rem; color: var(--muted); margin-top: .8rem; }
+.legend i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: .3rem; }
+.controls { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: .9rem 0 .3rem; }
+.sentence { font-family: var(--mono); font-size: .95rem; margin-top: .6rem; padding: .55rem .8rem; border-radius: 10px; background: var(--bg-deep); border: 1px solid var(--border); overflow-wrap: anywhere; }
+
+/* ── attention ──────────────────────────────── */
+.qkv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; margin-bottom: 1rem; }
+.qkv .k { border-top: 3px solid var(--c); padding: .85rem 1rem; }
+.qkv h4 { font-size: 1rem; }
+.qkv h4 span { color: var(--c); font-family: var(--mono); margin-right: .35rem; }
+.qkv p { font-size: .88rem; color: var(--muted); margin-top: .25rem; }
+.formula { text-align: center; font-family: var(--mono); font-size: clamp(.72rem, 3.1vw, 1.2rem); padding: .9rem; border-radius: 12px; background: var(--bg-deep); border: 1px dashed var(--attn); margin-bottom: 1.2rem; overflow-x: auto; white-space: nowrap; }
+.formula b { color: var(--attn); }
+.attn-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: .35rem; }
+.seg button { font: inherit; font-size: .83rem; color: var(--text); background: var(--bg-deep); border: 1px solid var(--border); border-radius: 8px; padding: .35rem .75rem; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: rgba(192,132,252,.25); border-color: var(--attn); }
+.ctl-row { display: flex; flex-wrap: wrap; gap: .8rem 1.4rem; align-items: center; margin-bottom: 1rem; }
+.switch { display: inline-flex; align-items: center; gap: .55rem; cursor: pointer; font-size: .86rem; }
+.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch .track { width: 38px; height: 22px; flex: none; border-radius: 999px; background: #475569; position: relative; transition: background .2s; }
+.switch .track::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .2s; }
+.switch input:checked + .track { background: var(--attn); }
+.switch input:checked + .track::after { transform: translateX(16px); }
+.switch input:focus-visible + .track { outline: 2px solid var(--primary); outline-offset: 2px; }
+.slider-row { display: flex; align-items: center; gap: .7rem; font-size: .86rem; }
+.slider-row input[type=range] { accent-color: var(--attn); width: 150px; }
+.slider-row output { font-family: var(--mono); min-width: 3ch; }
+.arc-inner { min-width: 540px; }
+.swipe-hint { display: none; font-size: .78rem; color: var(--muted); margin-top: .4rem; }
+#arcs { width: 100%; height: auto; display: block; }
+#arcs .a { fill: none; stroke: var(--attn); stroke-linecap: round; transition: all .3s; }
+#arcs text { fill: #ead7ff; font-size: 14px; font-weight: 700; text-anchor: middle; font-family: var(--mono); }
+#arcs .qdot { fill: var(--attn); }
+.chips { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.chips button { font-family: var(--mono); font-size: .86rem; color: var(--text); background: var(--bg-deep); border: 1px solid var(--border); border-radius: 8px; padding: .4rem .1rem; cursor: pointer; overflow: hidden; text-overflow: ellipsis; }
+.chips button[aria-pressed="true"] { background: rgba(192,132,252,.28); border-color: var(--attn); font-weight: 700; }
+.hm { display: grid; grid-template-columns: 92px repeat(7, 1fr); gap: 2px; min-width: 520px; margin-top: .3rem; }
+.hm .colh { writing-mode: vertical-rl; transform: rotate(180deg); font-family: var(--mono); font-size: .76rem; color: var(--muted); text-align: left; padding: 2px 0; justify-self: center; }
+.hm .rowh { font-family: var(--mono); font-size: .78rem; text-align: right; padding: .2rem .5rem; background: none; border: 1px solid transparent; border-radius: 6px; color: var(--muted); cursor: pointer; }
+.hm .rowh[aria-pressed="true"] { color: var(--text); border-color: var(--attn); background: rgba(192,132,252,.18); }
+.hm .c { height: 30px; border-radius: 4px; display: grid; place-items: center; font-size: .72rem; font-family: var(--mono); color: #1a0f2e; font-weight: 700; border: 1px solid rgba(148,163,184,.12); }
+.hm .c.m { background: repeating-linear-gradient(45deg, rgba(100,116,139,.2) 0 4px, transparent 4px 8px); color: #64748b; font-weight: 400; }
+.hm .c.qrow { box-shadow: 0 0 0 1.5px var(--attn); }
+.uh { width: 100%; border-collapse: collapse; font-size: .86rem; margin-bottom: .8rem; }
+.uh th { text-align: left; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: .25rem .4rem; border-bottom: 1px solid var(--border); font-weight: 700; }
+.uh td { padding: .28rem .4rem; border-bottom: 1px solid rgba(51,65,85,.55); font-family: var(--mono); }
+.uh td.num { text-align: right; }
+.uh .bar { display: block; height: 10px; border-radius: 5px; background: rgba(148,163,184,.14); overflow: hidden; min-width: 70px; }
+.uh .bar i { display: block; height: 100%; background: linear-gradient(90deg, #7c3aed, var(--attn)); transition: width .3s; }
+.uh tr.self td:first-child::after { content: ' (self)'; color: var(--muted); font-size: .72rem; }
+.steps { list-style: none; counter-reset: s; font-size: .86rem; color: var(--muted); display: grid; gap: .3rem; margin-bottom: .8rem; }
+.steps li { counter-increment: s; padding-left: 1.9rem; position: relative; }
+.steps li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 20px; height: 20px; border-radius: 50%; background: var(--attn); color: #1a0f2e; font-weight: 800; font-size: .72rem; display: grid; place-items: center; }
+.steps b { color: var(--text); }
+.blend { font-family: var(--mono); font-size: .84rem; background: var(--bg-deep); border-radius: 10px; padding: .6rem .8rem; border: 1px solid var(--border); overflow-wrap: anywhere; }
+.insight { margin-top: .8rem; font-size: .92rem; }
+.cost-grid { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 1.5rem; align-items: center; }
+#costCv { width: 100%; max-width: 280px; aspect-ratio: 1; display: block; border-radius: 10px; background: var(--bg-deep); border: 1px solid var(--border); }
+.big-n { font-family: var(--mono); font-size: 1.7rem; font-weight: 700; color: var(--attn); }
+.cost-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; margin: .8rem 0; }
+.cost-facts div { background: var(--bg-deep); border: 1px solid var(--border); border-radius: 10px; padding: .6rem .8rem; }
+.cost-facts small { display: block; color: var(--muted); font-size: .74rem; }
+
+/* ── predict ────────────────────────────────── */
+.ctx { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem; min-height: 38px; }
+.ctx .chip.gen { background: rgba(251,113,133,.18); border-color: var(--out); animation: pop .35s ease-out; }
+.ctx .chip.q { background: transparent; border-style: dashed; border-color: var(--muted); color: var(--muted); }
+@keyframes pop { from { transform: scale(.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.pred-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 1.5rem; }
+.cand { display: grid; grid-template-columns: 6.5rem 3rem minmax(0, 1fr) 3.2rem; align-items: center; gap: .6rem; width: 100%; font: inherit; color: var(--text); background: none; border: 1px solid transparent; border-radius: 8px; padding: .3rem .5rem; cursor: pointer; text-align: left; }
+.cand:hover:not(:disabled) { background: rgba(148,163,184,.1); border-color: var(--border); }
+.cand:disabled { cursor: not-allowed; opacity: .6; }
+.cand .w { font-family: var(--mono); font-size: .92rem; overflow: hidden; text-overflow: ellipsis; }
+.cand .lg { font-family: var(--mono); font-size: .76rem; color: var(--muted); }
+.cand .bar { height: 14px; border-radius: 7px; background: rgba(148,163,184,.14); overflow: hidden; }
+.cand .bar i { display: block; height: 100%; background: linear-gradient(90deg, #e11d48, var(--out)); transition: width .35s; }
+.cand .pc { font-family: var(--mono); font-size: .84rem; text-align: right; }
+.cand.pick { border-color: var(--out); background: rgba(251,113,133,.14); }
+.cand-head { display: grid; grid-template-columns: 6.5rem 3rem minmax(0, 1fr) 3.2rem; gap: .6rem; padding: 0 .5rem .2rem; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.temp-note { font-size: .85rem; color: var(--muted); min-height: 2.8em; margin-top: .3rem; }
+.loopbox { background: var(--bg-deep); border: 1px solid var(--border); border-radius: 12px; padding: .9rem 1rem; font-size: .88rem; color: var(--muted); }
+.loopbox ol { margin: .5rem 0 0 1.2rem; }
+.loopbox li { margin-bottom: .25rem; }
+.loopbox b { color: var(--text); }
+.status { font-size: .86rem; color: var(--out); min-height: 1.5em; margin-top: .6rem; }
+
+/* ── scale ──────────────────────────────────── */
+table.scale { width: 100%; border-collapse: collapse; font-size: .9rem; }
+table.scale caption { text-align: left; color: var(--muted); font-size: .8rem; padding-bottom: .6rem; }
+table.scale th { text-align: left; font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: .4rem .6rem; border-bottom: 1px solid var(--border); }
+table.scale tbody th { text-transform: none; letter-spacing: 0; font-size: .9rem; font-weight: 600; color: var(--text); border-bottom: 1px solid rgba(51,65,85,.6); }
+table.scale td { padding: .65rem .6rem; border-bottom: 1px solid rgba(51,65,85,.6); vertical-align: middle; }
+table.scale td.n { font-family: var(--mono); }
+table.scale .pbar { height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--emb), var(--attn), var(--out)); min-width: 6px; }
+table.scale .src { color: var(--muted); font-size: .78rem; }
+.blueprint { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: center; margin-bottom: 1.2rem; font-size: .84rem; }
+.blueprint span.b { padding: .3rem .7rem; border-radius: 8px; border: 1px solid var(--c); background: var(--cb); }
+.blueprint .x { color: var(--muted); }
+
+/* ── takeaways + footer ─────────────────────── */
+.take-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+.take { border-top: 3px solid var(--c); }
+.take .ic { font-size: 1.5rem; }
+.take h3 { margin: .3rem 0 .4rem; }
+.take p { color: var(--muted); font-size: .92rem; }
+.take p b { color: var(--text); }
+footer { margin-top: 4rem; padding: 2rem 0 3rem; border-top: 1px solid var(--border); background: var(--bg-deep); font-size: .86rem; color: var(--muted); }
+footer ul { margin: .5rem 0 .8rem 1.2rem; }
+footer li { margin-bottom: .3rem; }
+
+
+/* ── small utilities (replace inline styles) ── */
+.push { margin-left: auto; }
+.mt0 { margin-top: 0; } .mt04 { margin-top: .4rem; } .mt05 { margin-top: .5rem; } .mt08 { margin-top: .8rem; }
+.mt1 { margin-top: 1rem; } .mt12 { margin-top: 1.2rem; } .mt125 { margin-top: 1.25rem; }
+.my08 { margin: .8rem 0; }
+.hl { color: var(--attn); }
+.strong { color: var(--text); }
+.r { text-align: right; }
+.legend i.neg { background: rgba(96,165,250,.85); }
+.legend i.pos { background: rgba(251,191,36,.85); }
+.big-n.sm { font-size: 1.25rem; }
+table.scale th.wide { min-width: 210px; }
+table.scale td b.n { font-family: var(--mono); }
+.pbar.w18 { width: 18%; } .pbar.w29 { width: 29%; } .pbar.w94 { width: 94%; }
+.scrollx:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* ── responsive ─────────────────────────────── */
+@media (max-width: 900px) {
+    .journey-grid, .attn-grid, .pred-grid, .cost-grid { grid-template-columns: minmax(0, 1fr); }
+    .side { position: static; order: -1; }
+    .arch-wrap { max-width: 460px; margin: 0 auto; }
+    .cost-grid { justify-items: center; }
+    .qkv { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) { .swipe-hint { display: block; } }
+@media (max-width: 520px) {
+    section.block { padding-top: 3.2rem; }
+    .hero { padding-top: 4rem; }
+    .cand, .cand-head { grid-template-columns: 5.2rem 2.4rem minmax(0, 1fr) 2.8rem; gap: .4rem; }
+    table.scale th:nth-child(5), table.scale td:nth-child(5) { display: none; }
+    .cost-facts { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+    html { scroll-behavior: auto; }
+    .packet { display: none; }
+    .ribbon-track, .arc, .skip-line, .loop-line { animation: none; }
+}
+</style>
+</head>
+<body>
+<div class="progress" aria-hidden="true"><span id="prog"></span></div>
+<a class="skip" href="#main">Skip to content</a>
+
+<nav class="nav" aria-label="Page sections">
+    <div class="wrap">
+        <a class="home" href="index.html">&larr; Module 01</a>
+        <a href="#journey">1 &middot; The journey</a>
+        <a href="#embed">2 &middot; Embeddings</a>
+        <a href="#attention">3 &middot; Attention</a>
+        <a href="#predict">4 &middot; Predict</a>
+        <a href="#scale">5 &middot; Scale</a>
+        <a href="#takeaways">6 &middot; Why it matters</a>
+    </div>
+</nav>
+
+<header class="hero">
+    <div class="ribbon" aria-hidden="true">
+        <div class="ribbon-track">
+            <span>The</span><span>&nbsp;tech</span><span>nic</span><span>ian</span><span>&nbsp;replaced</span><span>&nbsp;the</span><span>&nbsp;sensor</span><span>&nbsp;because</span><span>&nbsp;it</span><span>&nbsp;failed</span><span>.</span><span>&lt;end&gt;</span><span>def</span><span>&nbsp;get</span><span>_zone</span><span>_temp</span><span>(</span><span>self</span><span>):</span>
+            <span>The</span><span>&nbsp;tech</span><span>nic</span><span>ian</span><span>&nbsp;replaced</span><span>&nbsp;the</span><span>&nbsp;sensor</span><span>&nbsp;because</span><span>&nbsp;it</span><span>&nbsp;failed</span><span>.</span><span>&lt;end&gt;</span><span>def</span><span>&nbsp;get</span><span>_zone</span><span>_temp</span><span>(</span><span>self</span><span>):</span>
+        </div>
+    </div>
+    <div class="wrap">
+        <p class="eyebrow">Module 01 &middot; GenAI &amp; LLM recap &middot; deep dive</p>
+        <h1>Inside a Transformer</h1>
+        <p class="sub">How a prompt becomes the next token: tokens, attention, layers and probabilities &mdash; one interactive step at a time.</p>
+        <div class="cta">
+            <a class="btn hot" href="#journey">Start the journey &darr;</a>
+            <a class="btn" href="#attention">Jump to attention</a>
+        </div>
+        <div class="hero-fig">
+            <svg viewBox="0 0 760 170" role="img" aria-label="Seven tokens in a row: The, technician, replaced, the, sensor, because, it. Animated arcs show the token 'it' attending strongly to 'sensor' and more weakly to 'technician' and 'because'.">
+                <path class="arc" style="stroke-width:7" d="M700 122 Q597 8 495 122"/>
+                <path class="arc" style="stroke-width:3.5" d="M700 122 Q432 -60 165 122"/>
+                <path class="arc" style="stroke-width:2" d="M700 122 Q650 62 600 122"/>
+                <path class="arc" style="stroke-width:3" d="M290 122 Q227 40 165 122"/>
+                <path class="arc" style="stroke-width:3" d="M495 122 Q392 20 290 122"/>
+                <path class="arc" style="stroke-width:1.5" d="M495 122 Q445 72 395 122"/>
+                <g>
+                    <rect class="pill" x="26" y="124" width="48" height="30" rx="8"/><text x="50" y="144">The</text>
+                    <rect class="pill" x="107" y="124" width="116" height="30" rx="8"/><text x="165" y="144">technician</text>
+                    <rect class="pill" x="244" y="124" width="92" height="30" rx="8"/><text x="290" y="144">replaced</text>
+                    <rect class="pill" x="368" y="124" width="54" height="30" rx="8"/><text x="395" y="144">the</text>
+                    <rect class="pill" x="455" y="124" width="80" height="30" rx="8"/><text x="495" y="144">sensor</text>
+                    <rect class="pill" x="558" y="124" width="84" height="30" rx="8"/><text x="600" y="144">because</text>
+                    <rect class="pill q" x="676" y="124" width="48" height="30" rx="8"/><text x="700" y="144">it</text>
+                </g>
+            </svg>
+            <p class="hero-cap">Preview: while reading &ldquo;it&rdquo;, the model looks back &mdash; hardest at &ldquo;sensor&rdquo;. That lookup is <b>attention</b>. (Illustrative weights.)</p>
+        </div>
+    </div>
+</header>
+
+<main id="main" class="wrap">
+
+<!-- ═════════════ 1. JOURNEY ═════════════ -->
+<section class="block" id="journey" style="--c: var(--attn)">
+    <p class="eyebrow">1 &middot; The big picture</p>
+    <h2>The journey of one prompt</h2>
+    <p class="lede">A modern chat or code model is a <b>stack of identical blocks</b>. Text goes in at the bottom, flows up through the stack, and one token&rsquo;s worth of probabilities comes out at the top. Select a stage &mdash; or press <b>Play tour</b> &mdash; to light up that part of the machine.</p>
+
+    <div class="stepper" id="stepper" role="group" aria-label="Choose a stage of the pipeline">
+        <button type="button" class="step-btn s1" data-n="1"><span class="num">1</span>Tokenize</button>
+        <button type="button" class="step-btn s2" data-n="2"><span class="num">2</span>Embed + position</button>
+        <button type="button" class="step-btn s3" data-n="3"><span class="num">3</span>Attention</button>
+        <button type="button" class="step-btn s4" data-n="4"><span class="num">4</span>Feed-forward</button>
+        <button type="button" class="step-btn s5" data-n="5"><span class="num">5</span>Residual &times; N</button>
+        <button type="button" class="step-btn s6" data-n="6"><span class="num">6</span>Predict</button>
+        <button type="button" class="btn push" id="tour">&#9654; Play tour</button>
+    </div>
+
+    <div class="journey-grid">
+        <div class="arch-wrap">
+<svg id="arch" viewBox="0 0 440 850" role="group" aria-label="Architecture of a decoder-only transformer, read bottom to top: input text, tokenizer, token embedding plus position signal, a repeated transformer block containing masked multi-head self-attention and a feed-forward network joined by residual connections and layer norms, then the output layer that produces next-token probabilities, which are appended to the input to repeat. Each stage is a button.">
+<defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#94a3b8"/></marker>
+    <marker id="ahr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#fbbf24"/></marker>
+    <marker id="aho" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#fb7185"/></marker>
+</defs>
+
+<!-- wires between stages -->
+<g class="wires" aria-hidden="true">
+    <path class="wire" d="M140 790 V771" marker-end="url(#ah)"/>
+    <path class="wire" d="M140 735 V703" marker-end="url(#ah)"/>
+    <path class="wire" d="M140 665 L211 636" marker-end="url(#ah)"/>
+    <path class="wire" d="M300 665 L229 636" marker-end="url(#ah)"/>
+    <path class="wire" d="M220 613 V558" marker-end="url(#ah)"/>
+    <path class="wire" d="M220 532 V516" marker-end="url(#ah)"/>
+    <path class="wire" d="M220 436 V419" marker-end="url(#ah)"/>
+    <path class="wire" d="M220 395 V376" marker-end="url(#ah)"/>
+    <path class="wire" d="M220 350 V334" marker-end="url(#ah)"/>
+    <path class="wire" d="M220 262 V245" marker-end="url(#ah)"/>
+    <path class="wire" d="M220 221 V186" marker-end="url(#ah)"/>
+    <path class="wire" d="M220 160 V146" marker-end="url(#ah)"/>
+    <path class="wire" d="M220 112 V98" marker-end="url(#ah)"/>
+    <path class="wire" d="M220 66 V52" marker-end="url(#ah)"/>
+</g>
+
+<!-- 5 · block container, norms, residuals -->
+<g class="stage s5" data-stage="5" tabindex="0" role="button" aria-label="Stage 5: residual connections, layer norm, and the block repeated N times">
+    <rect class="box block-box" x="34" y="205" width="356" height="380" rx="16"/>
+    <text class="sm" x="52" y="224" style="text-anchor:start;letter-spacing:.1em">TRANSFORMER BLOCK</text>
+    <rect class="box" x="330" y="194" width="62" height="22" rx="11"/>
+    <text x="361" y="209" style="font-weight:700;font-size:12px">&times; N</text>
+    <rect class="box" x="160" y="532" width="120" height="24" rx="7"/><text class="sm" x="220" y="548">LayerNorm</text>
+    <rect class="box" x="160" y="350" width="120" height="24" rx="7"/><text class="sm" x="220" y="366">LayerNorm</text>
+    <circle class="plus" cx="220" cy="406" r="11"/><text class="plus-t" x="220" y="412">+</text>
+    <circle class="plus" cx="220" cy="232" r="11"/><text class="plus-t" x="220" y="238">+</text>
+    <path class="skip-line" d="M220 568 H72 V406 H208" marker-end="url(#ahr)"/>
+    <path class="skip-line" d="M220 384 H360 V232 H232" marker-end="url(#ahr)"/>
+    <text class="lbl-res" transform="translate(58 486) rotate(-90)" style="text-anchor:middle">RESIDUAL (SKIP)</text>
+    <text class="lbl-res" transform="translate(374 308) rotate(90)" style="text-anchor:middle">RESIDUAL (SKIP)</text>
+    <circle class="badge" cx="34" cy="205" r="10"/><text class="bnum" x="34" y="209">5</text>
+</g>
+
+<!-- 3 · attention -->
+<g class="stage s3" data-stage="3" tabindex="0" role="button" aria-label="Stage 3: masked multi-head self-attention">
+    <rect class="box" x="112" y="436" width="216" height="78" rx="12"/>
+    <text x="220" y="456" style="font-weight:700">Masked multi-head</text>
+    <text x="220" y="472" style="font-weight:700">self-attention</text>
+    <rect class="head-sq" x="140" y="482" width="30" height="12" rx="3"/>
+    <rect class="head-sq" x="178" y="482" width="30" height="12" rx="3"/>
+    <rect class="head-sq" x="216" y="482" width="30" height="12" rx="3"/>
+    <rect class="head-sq" x="254" y="482" width="30" height="12" rx="3"/>
+    <text class="sm" x="220" y="508">heads in parallel &rarr; concat &rarr; W<tspan baseline-shift="sub" font-size="8">O</tspan></text>
+    <circle class="badge" cx="112" cy="436" r="10"/><text class="bnum" x="112" y="440">3</text>
+</g>
+
+<!-- 4 · mlp -->
+<g class="stage s4" data-stage="4" tabindex="0" role="button" aria-label="Stage 4: feed-forward network, an MLP applied to each token separately">
+    <rect class="box" x="112" y="262" width="216" height="70" rx="12"/>
+    <text x="220" y="283" style="font-weight:700">Feed-forward (MLP)</text>
+    <text class="sm mono" x="220" y="301">widen &times;4 &rarr; GELU &rarr; narrow</text>
+    <g aria-hidden="true">
+        <circle class="dot" cx="140" cy="312" r="3"/><circle class="dot" cx="140" cy="322" r="3"/>
+        <circle class="dot" cx="180" cy="308" r="3"/><circle class="dot" cx="180" cy="317" r="3"/><circle class="dot" cx="180" cy="326" r="3"/>
+        <circle class="dot" cx="220" cy="310" r="3"/><circle class="dot" cx="220" cy="319" r="3"/><circle class="dot" cx="220" cy="328" r="3"/>
+        <circle class="dot" cx="260" cy="308" r="3"/><circle class="dot" cx="260" cy="317" r="3"/><circle class="dot" cx="260" cy="326" r="3"/>
+        <circle class="dot" cx="300" cy="312" r="3"/><circle class="dot" cx="300" cy="322" r="3"/>
+    </g>
+    <circle class="badge" cx="112" cy="262" r="10"/><text class="bnum" x="112" y="266">4</text>
+</g>
+
+<!-- 6 · predict -->
+<g class="stage s6" data-stage="6" tabindex="0" role="button" aria-label="Stage 6: unembedding, softmax and choosing the next token, which is appended to the input">
+    <path class="loop-line" d="M330 32 H420 V808 H402" marker-end="url(#aho)"/>
+    <text class="lbl-out" transform="translate(432 420) rotate(90)" style="text-anchor:middle">APPEND &amp; REPEAT</text>
+    <rect class="box" x="110" y="14" width="220" height="36" rx="10"/><text x="220" y="37" style="font-weight:700">next token &rarr; &ldquo;failed&rdquo;</text>
+    <rect class="box" x="140" y="66" width="160" height="30" rx="9"/><text x="220" y="86">Softmax &rarr; probabilities</text>
+    <rect class="box" x="120" y="112" width="200" height="32" rx="9"/><text x="220" y="132">Unembed: Linear &rarr; vocab</text>
+    <rect class="box" x="160" y="160" width="120" height="24" rx="7"/><text class="sm" x="220" y="176">Final LayerNorm</text>
+    <circle class="badge" cx="110" cy="14" r="10"/><text class="bnum" x="110" y="18">6</text>
+</g>
+
+<!-- 2 · embeddings -->
+<g class="stage s2" data-stage="2" tabindex="0" role="button" aria-label="Stage 2: token embedding plus position signal">
+    <rect class="box" x="70" y="665" width="140" height="36" rx="10"/><text x="140" y="688">Token embedding</text>
+    <rect class="box" x="230" y="665" width="140" height="36" rx="10"/><text x="300" y="688">Position signal</text>
+    <text class="sm" x="300" y="718">slot 0, 1, 2, &hellip;</text>
+    <circle class="plus" cx="220" cy="625" r="12"/><text class="plus-t" x="220" y="631">+</text>
+    <circle class="badge" cx="70" cy="665" r="10"/><text class="bnum" x="70" y="669">2</text>
+</g>
+
+<!-- 1 · tokenize -->
+<g class="stage s1" data-stage="1" tabindex="0" role="button" aria-label="Stage 1: the tokenizer turns text into token IDs">
+    <rect class="box" x="70" y="735" width="140" height="34" rx="10"/><text x="140" y="757">Tokenizer</text>
+    <text class="sm mono" x="296" y="757">&rarr; [791, 15233, 12373, &hellip;]</text>
+    <rect class="box" x="40" y="790" width="360" height="36" rx="10"/><text class="sm" x="220" y="812" style="fill:#e2e8f0">&ldquo;The technician replaced the sensor because it&rdquo;</text>
+    <circle class="badge" cx="70" cy="735" r="10"/><text class="bnum" x="70" y="739">1</text>
+</g>
+
+<!-- travelling data packets -->
+<g class="packet" aria-hidden="true" pointer-events="none">
+    <circle class="halo" r="9"/><circle class="core" r="4"/>
+    <animateMotion dur="8s" repeatCount="indefinite" begin="0s" path="M140 808 L140 665 L220 625 L220 32"/>
+</g>
+<g class="packet" aria-hidden="true" pointer-events="none" visibility="hidden">
+    <set attributeName="visibility" to="visible" begin="2.7s" fill="freeze"/>
+    <circle class="halo" r="9"/><circle class="core" r="4"/>
+    <animateMotion dur="8s" repeatCount="indefinite" begin="2.7s" path="M140 808 L140 665 L220 625 L220 32"/>
+</g>
+<g class="packet" aria-hidden="true" pointer-events="none" visibility="hidden">
+    <set attributeName="visibility" to="visible" begin="5.4s" fill="freeze"/>
+    <circle class="halo" r="9"/><circle class="core" r="4"/>
+    <animateMotion dur="8s" repeatCount="indefinite" begin="5.4s" path="M140 808 L140 665 L220 625 L220 32"/>
+</g>
+</svg>
+        </div>
+
+        <div class="side">
+            <div class="card stage-panel" id="panel" aria-live="polite"></div>
+            <div class="differs card mt1">
+                <b>Where this differs from the 2017 paper</b>
+                <ul>
+                    <li>The original was an <b>encoder + decoder</b> built for translation. GPT-style chat and code models keep only the <b>decoder</b> stack &mdash; the one drawn here.</li>
+                    <li>Modern models commonly use <b>rotary position embeddings (RoPE)</b> rather than adding sine/cosine waves, and apply LayerNorm <b>before</b> each sub-layer (pre-norm).</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═════════════ 2. EMBEDDINGS ═════════════ -->
+<section class="block" id="embed" style="--c: var(--emb)">
+    <p class="eyebrow">2 &middot; From words to numbers</p>
+    <h2>Embeddings + position: what the model actually sees</h2>
+    <p class="lede">Each token ID looks up a learned vector. Then a <b>position signal</b> &mdash; a pattern of sines and cosines at different speeds, like the hands of a clock &mdash; is added to it. Their <b>sum</b> is the input to layer 1. Try shuffling the words and watch which columns change.</p>
+
+    <div class="card">
+        <section class="scrollx" tabindex="0" aria-label="Embedding table, scrolls sideways on small screens">
+            <div class="erows" id="erows"></div>
+        </section>
+        <div class="controls">
+            <button type="button" class="btn hot" id="shuffle">&#128256; Shuffle word order</button>
+            <button type="button" class="btn" id="unshuffle">Reset order</button>
+        </div>
+        <p class="sentence" id="sentence" aria-live="polite"></p>
+        <div class="legend" aria-hidden="true">
+            <span><i class="neg"></i>negative value</span>
+            <span><i class="pos"></i>positive value</span>
+            <span>colour strength = magnitude &middot; hover a cell for the number</span>
+        </div>
+        <p class="note">Only d&nbsp;=&nbsp;6 dimensions are shown (real models use hundreds to thousands). Token vectors here are made-up stand-ins for <em>learned</em> values and the IDs are illustrative; the position pattern uses the paper&rsquo;s actual sinusoidal formula. Notice the first pair of position columns changes fast from row to row while the last pair barely moves &mdash; fast and slow clock hands.</p>
+        <div class="callout"><strong>The insight:</strong> after shuffling, every token keeps the <em>same</em> embedding but meets a <em>different</em> position pattern, so the sums differ. That is how order enters a network whose attention layers would otherwise see only an unordered set.</div>
+    </div>
+</section>
+
+<!-- ═════════════ 3. ATTENTION ═════════════ -->
+<section class="block" id="attention" style="--c: var(--attn)">
+    <p class="eyebrow">3 &middot; The heart of the transformer</p>
+    <h2>Self-attention: every token reads the others</h2>
+    <p class="lede">For each token the model builds three vectors from its current representation. The <b>query</b> is compared with every <b>key</b>; the better the match, the more of that token&rsquo;s <b>value</b> gets blended in. Below, the context is the same prompt the model is about to continue.</p>
+
+    <div class="qkv">
+        <div class="card k s3"><h4><span>Q</span>Query</h4><p>&ldquo;What am I looking for?&rdquo; Made from the token that is currently reading.</p></div>
+        <div class="card k s2"><h4><span>K</span>Key</h4><p>&ldquo;What do I contain?&rdquo; Made for every token, so queries have something to match against.</p></div>
+        <div class="card k s4"><h4><span>V</span>Value</h4><p>&ldquo;What do I hand over if picked?&rdquo; The content that actually gets mixed into the reader.</p></div>
+    </div>
+    <div class="formula" role="img" aria-label="Attention of Q, K, V equals softmax of Q times K transpose divided by square root of d k, times V">Attention(Q,K,V) = <b>softmax</b>( Q&middot;K<sup>T</sup> / &radic;d<sub>k</sub> ) &middot; V</div>
+
+    <div class="attn-grid">
+        <div class="card">
+            <div class="ctl-row">
+                <div class="seg" id="heads" role="group" aria-label="Attention head">
+                    <button type="button" data-h="0" aria-pressed="true">Head 1 &middot; who is &ldquo;it&rdquo;?</button>
+                    <button type="button" data-h="1" aria-pressed="false">Head 2 &middot; previous word</button>
+                    <button type="button" data-h="2" aria-pressed="false">Head 3 &middot; verb &harr; nouns</button>
+                </div>
+            </div>
+            <div class="ctl-row">
+                <label class="switch"><input type="checkbox" id="mask" checked><span class="track" aria-hidden="true"></span><span>Causal mask &mdash; no peeking at future tokens</span></label>
+                <div class="slider-row"><label for="scoreScale">Score magnitude</label><input type="range" id="scoreScale" min="0.3" max="3" step="0.1" value="1"><output id="scaleOut" for="scoreScale">&times;1.0</output></div>
+            </div>
+
+            <p class="viz-title">Click a word &mdash; arcs show where it reads from</p>
+            <section class="scrollx" tabindex="0" aria-label="Attention arcs, scrolls sideways on small screens">
+                <div class="arc-inner">
+                    <svg id="arcs" viewBox="0 0 700 150" role="img" aria-label="Attention arcs"></svg>
+                    <div class="chips" id="chips"></div>
+                </div>
+            </section>
+            <p class="swipe-hint">&harr; Swipe sideways to see every word and arc.</p>
+
+            <p class="viz-title mt12">Attention matrix &mdash; rows read from columns</p>
+            <section class="scrollx" tabindex="0" aria-label="Attention matrix, scrolls sideways on small screens">
+                <div class="hm" id="hm"></div>
+            </section>
+            <p class="note">Striped cells are masked: with the causal mask on, a token can only read itself and earlier tokens &mdash; which is what lets a decoder generate text left to right. Switch it off to see bidirectional (encoder-style) attention. Scores are <b>hand-set for illustration</b>; real heads are learned and rarely have such tidy jobs.</p>
+        </div>
+
+        <div class="card">
+            <p class="viz-title">Under the hood &middot; reading as <span id="uhWord" class="hl">it</span></p>
+            <ol class="steps">
+                <li><b>Score</b> the query against every key (dot product).</li>
+                <li><b>Scale</b> by 1/&radic;d<sub>k</sub> so scores don&rsquo;t blow up in high dimensions.</li>
+                <li><b>Mask</b> the future (set to &minus;&infin;).</li>
+                <li><b>Softmax</b> &rarr; weights that sum to 100%.</li>
+                <li><b>Blend</b> the values using those weights.</li>
+            </ol>
+            <table class="uh">
+                <thead><tr><th scope="col">Reads</th><th scope="col" class="r">Score</th><th scope="col">Weight</th><th scope="col"></th></tr></thead>
+                <tbody id="uhBody"></tbody>
+            </table>
+            <p class="viz-title">Output vector for this word</p>
+            <p class="blend" id="blend"></p>
+            <p class="insight" id="insight" aria-live="polite"></p>
+            <div class="callout"><strong>Why divide by &radic;d<sub>k</sub>?</strong> Drag <em>Score magnitude</em> to &times;3: big scores push softmax toward a single winner (one weight &asymp; 100%), which starves the other tokens of attention &mdash; and of gradient during training.</div>
+        </div>
+    </div>
+
+    <div class="card mt125">
+        <div class="cost-grid">
+            <canvas id="costCv" role="img" aria-label="Square grid of attention scores"></canvas>
+            <div>
+                <p class="viz-title">The price of context</p>
+                <h3>Every token scores against every other token</h3>
+                <p class="note mt04">Bright cells are the scores computed under a causal mask; dim cells are masked out. Drag to grow the context.</p>
+                <div class="slider-row my08"><label for="nTok">Tokens in context (n)</label><input type="range" id="nTok" min="4" max="48" step="1" value="16"><output id="nOut" for="nTok" class="big-n">16</output></div>
+                <div class="cost-facts">
+                    <div><small>all pairs, n&sup2;</small><b class="big-n sm" id="allPairs"></b></div>
+                    <div><small>under causal mask, n(n+1)/2</small><b class="big-n sm" id="maskPairs"></b></div>
+                </div>
+                <div class="callout"><strong>Double the context &rarr; ~4&times; the scores,</strong> per head, per layer. That is one reason long contexts are slower and costlier &mdash; and why this course teaches context discipline.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═════════════ 4. PREDICT ═════════════ -->
+<section class="block" id="predict" style="--c: var(--out)">
+    <p class="eyebrow">4 &middot; The last step</p>
+    <h2>Predict, sample, append, repeat</h2>
+    <p class="lede">The top of the stack yields one score (<b>logit</b>) per vocabulary entry. <b>Softmax</b> turns scores into probabilities; <b>temperature</b> sharpens or flattens them before one token is drawn. That token is appended, and the entire journey runs again for the next one.</p>
+
+    <div class="card">
+        <p class="viz-title">Context &mdash; pink tokens were generated by you</p>
+        <div class="ctx" id="ctx" aria-live="polite"></div>
+
+        <div class="pred-grid">
+            <div>
+                <p class="viz-title">Candidates &middot; p = softmax(logit &divide; T) &middot; click one to pick it</p>
+                <div class="cand-head" aria-hidden="true"><span>token</span><span>logit</span><span>probability</span><span class="r">%</span></div>
+                <div id="cands"></div>
+                <div class="slider-row mt08"><label for="temp">Temperature</label><input type="range" id="temp" min="0.1" max="2" step="0.1" value="1"><output id="tempOut" for="temp">1.0</output></div>
+                <p class="temp-note" id="tempNote"></p>
+            </div>
+            <div>
+                <div class="controls mt0">
+                    <button type="button" class="btn hot" id="sample">&#127922; Sample next token</button>
+                    <button type="button" class="btn" id="greedy">Greedy (top pick)</button>
+                    <button type="button" class="btn" id="auto">&#9654; Auto-generate</button>
+                    <button type="button" class="btn" id="resetGen">Reset</button>
+                </div>
+                <p class="status" id="genStatus" role="status" aria-live="polite"></p>
+                <div class="loopbox">
+                    <b class="strong">What one loop iteration costs</b>
+                    <ol>
+                        <li>Run the new text through all N blocks (earlier tokens&rsquo; keys &amp; values are <b>cached</b>, so mostly only the newest token is computed).</li>
+                        <li>Take the vector at the <b>last</b> position &rarr; logits &rarr; probabilities.</li>
+                        <li>Sample one token &rarr; append &rarr; go to step 1.</li>
+                    </ol>
+                    <p id="passInfo" class="mt05"></p>
+                </div>
+            </div>
+        </div>
+        <p class="note">Logits are <b>hand-written for illustration</b> (top&nbsp;5 shown; a real model scores the whole vocabulary). The point is the mechanics: nothing here checks whether a continuation is <em>true</em> &mdash; only whether it is <em>probable</em>.</p>
+    </div>
+</section>
+
+<!-- ═════════════ 5. SCALE ═════════════ -->
+<section class="block" id="scale" style="--c: var(--mlp)">
+    <p class="eyebrow">5 &middot; Same blueprint, bigger</p>
+    <h2>From 65 million to 175 billion parameters</h2>
+    <p class="lede">There is no extra secret ingredient hiding in large models. They repeat the <em>same</em> block &mdash; attention, MLP, residuals &mdash; with more layers, wider vectors and more heads.</p>
+
+    <div class="blueprint" role="img" aria-label="One block is attention then feed-forward, repeated N times">
+        <span class="b s3">Attention</span><span class="x">+</span><span class="b s4">Feed-forward</span><span class="x">+</span><span class="b s5">Residual &amp; norm</span><span class="x">=</span><span class="b s5">1 block</span><span class="x">&times;</span><span class="b s6">N layers</span>
+    </div>
+
+    <div class="card">
+        <section class="scrollx" tabindex="0" aria-label="Model size comparison table, scrolls sideways on small screens">
+        <table class="scale">
+            <caption>Published configurations. Bars use a log axis starting at 10 M: GPT-3&rsquo;s bar is only &asymp;5&times; as long as the base model&rsquo;s, yet it holds &asymp;2,700&times; the parameters.</caption>
+            <thead><tr><th scope="col">Model</th><th scope="col">Layers</th><th scope="col">d<sub>model</sub></th><th scope="col">Heads</th><th scope="col">Source</th><th scope="col" class="wide">Parameters</th></tr></thead>
+            <tbody>
+                <tr><th scope="row">Transformer (base), 2017</th><td class="n">6 enc + 6 dec</td><td class="n">512</td><td class="n">8</td><td class="src">Vaswani et al., Table 3</td><td><div class="pbar w18"></div><b class="n">65 M</b></td></tr>
+                <tr><th scope="row">Transformer (big), 2017</th><td class="n">6 enc + 6 dec</td><td class="n">1024</td><td class="n">16</td><td class="src">Vaswani et al., Table 3</td><td><div class="pbar w29"></div><b class="n">213 M</b></td></tr>
+                <tr><th scope="row">GPT-3 175B, 2020</th><td class="n">96 (decoder-only)</td><td class="n">12,288</td><td class="n">96</td><td class="src">Brown et al., Table 2.1</td><td><div class="pbar w94"></div><b class="n">175 B</b></td></tr>
+            </tbody>
+        </table>
+        </section>
+        <p class="note">In the base model d<sub>model</sub> = 512 = 8 heads &times; 64 dims each, and the feed-forward layer is 4&times; wider (2048). With that 4&times; width, roughly <b>two-thirds</b> of each block&rsquo;s weights sit in the MLP (8d&sup2;) and one-third in attention (4d&sup2;).</p>
+    </div>
+</section>
+
+<!-- ═════════════ 6. TAKEAWAYS ═════════════ -->
+<section class="block" id="takeaways" style="--c: var(--res)">
+    <p class="eyebrow">6 &middot; Why it matters on the job</p>
+    <h2>What the architecture means for your Copilot habits</h2>
+    <p class="lede">Each habit taught in this programme has a mechanical reason behind it.</p>
+    <div class="take-grid">
+        <div class="card take s3"><div class="ic" aria-hidden="true">&#127919;</div><h3>Context is an attention budget</h3><p>Attention weights come from a softmax, so they <b>sum to 100%</b>. Every extra, loosely relevant token competes with the ones that matter &mdash; noise dilutes focus.</p></div>
+        <div class="card take s6"><div class="ic" aria-hidden="true">&#127922;</div><h3>Probable is not verified</h3><p>The final step <b>samples from a distribution</b>. Nothing in the stack checks facts, which is why specs, tests and review sit at the core of this programme.</p></div>
+        <div class="card take s2"><div class="ic" aria-hidden="true">&#128184;</div><h3>Long context costs twice</h3><p>Input and output tokens are both counted, and attention work grows roughly with <b>n&sup2;</b>. Trimming context saves money <em>and</em> sharpens answers.</p></div>
+        <div class="card take s4"><div class="ic" aria-hidden="true">&#127777;&#65039;</div><h3>Temperature only touches the end</h3><p>It rescales the logits <b>just before softmax</b>; the stack below is unchanged. Low for code and refactors, higher for brainstorming.</p></div>
+    </div>
+</section>
+
+</main>
+
+<footer>
+    <div class="wrap">
+        <b class="strong">Sources &amp; notes</b>
+        <ul>
+            <li>Vaswani et al., <em>Attention Is All You Need</em>, 2017 &mdash; <a href="https://arxiv.org/abs/1706.03762" rel="noopener">arXiv:1706.03762</a> (also listed in the Module 01 guide). Source of the base/big configurations, sinusoidal position formula, &radic;d<sub>k</sub> scaling and the 4&times; feed-forward width.</li>
+            <li>Brown et al., <em>Language Models are Few-Shot Learners</em>, 2020 &mdash; <a href="https://arxiv.org/abs/2005.14165" rel="noopener">arXiv:2005.14165</a>. Source of the GPT-3 175B configuration.</li>
+            <li>Attention weights, token IDs, embedding values and next-token logits on this page are <b>illustrative</b>, hand-made to teach the mechanics &mdash; they are not read from a real model.</li>
+        </ul>
+        <a href="index.html">&larr; Back to the Module 01 concept page</a>
+    </div>
+</footer>
+
+<script>
+(function () {
+'use strict';
+var $ = function (s, r) { return (r || document).querySelector(s); };
+var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+
+/* ── progress bar + active nav link ───────────── */
+var prog = $('#prog');
+function onScroll() {
+    var h = document.documentElement;
+    var p = h.scrollTop / ((h.scrollHeight - h.clientHeight) || 1);
+    prog.style.width = (p * 100) + '%';
+}
+window.addEventListener('scroll', onScroll, { passive: true });
+onScroll();
+var navLinks = $$('.nav a[href^="#"]');
+if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+            if (e.isIntersecting) {
+                navLinks.forEach(function (a) { a.classList.toggle('on', a.getAttribute('href') === '#' + e.target.id); });
+            }
+        });
+    }, { rootMargin: '-40% 0px -55% 0px' });
+    $$('section.block').forEach(function (s) { io.observe(s); });
+}
+
+/* ── 1 · journey ───────────────────────────────── */
+var STAGES = [
+    { n: 1, name: 'Tokenize', inp: 'text', out: '[n] integer IDs',
+      body: 'The prompt is chopped into <b>tokens</b> &mdash; word pieces from a fixed vocabulary &mdash; and every piece is swapped for an integer ID. The network only does arithmetic, so text has to become numbers first.',
+      why: 'Context limits, speed and cost are all counted in these tokens &mdash; not in words or lines.',
+      jump: ['index.html#card-5', 'Module 01 &middot; Tokens card &nearr;'] },
+    { n: 2, name: 'Embed + position', inp: '[n] IDs', out: '[n &times; d] vectors',
+      body: 'Each ID looks up a learned list of <i>d</i> numbers &mdash; its <b>embedding</b>, a point in space where related tokens sit close together. A <b>position signal</b> is then added to it.',
+      why: 'Self-attention by itself treats tokens as an unordered set, so order must be injected &mdash; otherwise &ldquo;dog bites man&rdquo; and &ldquo;man bites dog&rdquo; look alike.',
+      jump: ['#embed', 'Try the embedding table &darr;'] },
+    { n: 3, name: 'Masked multi-head self-attention', inp: '[n &times; d]', out: '[n &times; d]',
+      body: 'Every token asks a question (<b>query</b>), every token advertises what it holds (<b>key</b>), and matching scores decide how much of each token&rsquo;s <b>value</b> to blend in. Several <b>heads</b> do this in parallel; a <b>causal mask</b> stops a token reading the future.',
+      why: 'This is the <b>only</b> place tokens exchange information &mdash; it is how &ldquo;it&rdquo; can pull in what &ldquo;sensor&rdquo; means.',
+      jump: ['#attention', 'Explore attention &darr;'] },
+    { n: 4, name: 'Feed-forward network (MLP)', inp: '[n &times; d]', out: '[n &times; d]',
+      body: 'Once tokens have gathered context, a small two-layer network processes <b>each position on its own</b>: widen (the original paper uses 4&times;), apply a non-linearity, narrow back down.',
+      why: 'Attention moves information <i>between</i> tokens; the MLP transforms it <i>within</i> a token. With the usual 4&times; width, about two-thirds of each block&rsquo;s weights live here.',
+      jump: ['#scale', 'See how big blocks get &darr;'] },
+    { n: 5, name: 'Residuals, LayerNorm &amp; the stack', inp: '[n &times; d]', out: '[n &times; d] (refined)',
+      body: 'Each sub-layer <b>adds</b> its result onto a running &ldquo;residual stream&rdquo; instead of replacing it, and <b>LayerNorm</b> keeps the numbers well-behaved. Then the whole block repeats &mdash; N times, each with its own weights.',
+      why: 'Skip connections let information and gradients flow straight through a deep stack. The original paper stacks 6 blocks; GPT-3 stacks 96.',
+      jump: ['#scale', 'Compare stack depths &darr;'] },
+    { n: 6, name: 'Predict the next token', inp: 'last position [d]', out: '[V] probabilities',
+      body: 'The final vector at the <b>last</b> position is projected to one score per vocabulary entry; <b>softmax</b> turns scores into probabilities; one token is sampled, appended to the input, and the whole journey runs again.',
+      why: 'Nothing in this pipeline checks facts &mdash; output is <b>probable, not verified</b>. That is why specs, tests and review matter.',
+      jump: ['#predict', 'Sample tokens yourself &darr;'] }
+];
+var COLORS = ['s1', 's2', 's3', 's4', 's5', 's6'];
+var arch = $('#arch'), stageEls = $$('.stage', arch), stepBtns = $$('.step-btn'), panel = $('#panel');
+var cur = 0, tourTimer = null, tourBtn = $('#tour');
+
+function select(n, byUser) {
+    cur = n;
+    arch.classList.add('has-sel');
+    stageEls.forEach(function (g) {
+        var on = +g.dataset.stage === n;
+        g.classList.toggle('sel', on);
+        g.classList.toggle('dim', !on);
+        g.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    stepBtns.forEach(function (b) { b.setAttribute('aria-pressed', +b.dataset.n === n ? 'true' : 'false'); });
+    var s = STAGES[n - 1];
+    panel.className = 'card stage-panel ' + COLORS[n - 1];
+    panel.innerHTML =
+        '<p class="kicker">Stage ' + s.n + ' of 6</p>' +
+        '<h3>' + s.name + '</h3>' +
+        '<div class="io"><span>in</span><code>' + s.inp + '</code><span aria-hidden="true">&rarr;</span><span class="sr-only">out</span><code>' + s.out + '</code></div>' +
+        '<p>' + s.body + '</p>' +
+        '<p class="why"><b>Why it exists:</b> ' + s.why + '</p>' +
+        '<div class="panel-actions">' +
+            '<button type="button" class="btn" id="prev"' + (n === 1 ? ' disabled' : '') + '>&larr; Prev</button>' +
+            '<button type="button" class="btn" id="next"' + (n === 6 ? ' disabled' : '') + '>Next &rarr;</button>' +
+            '<span class="spacer"></span>' +
+            '<a class="btn" href="' + s.jump[0] + '">' + s.jump[1] + '</a>' +
+        '</div>';
+    $('#prev').addEventListener('click', function () { select(cur - 1, true); });
+    $('#next').addEventListener('click', function () { select(cur + 1, true); });
+    if (byUser) stopTour();
+}
+function stopTour() {
+    if (tourTimer) { clearInterval(tourTimer); tourTimer = null; }
+    tourBtn.innerHTML = '&#9654; Play tour';
+}
+tourBtn.addEventListener('click', function () {
+    if (tourTimer) { stopTour(); return; }
+    tourBtn.innerHTML = '&#10074;&#10074; Pause tour';
+    select(1, false);
+    tourTimer = setInterval(function () { select(cur % 6 + 1, false); }, 4800);
+});
+stepBtns.forEach(function (b) { b.addEventListener('click', function () { select(+b.dataset.n, true); }); });
+stageEls.forEach(function (g) {
+    g.addEventListener('click', function () { select(+g.dataset.stage, true); });
+    g.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(+g.dataset.stage, true); }
+    });
+});
+select(3, false);
+
+/* ── 2 · embeddings ────────────────────────────── */
+var WORDS = ['The', 'technician', 'replaced', 'the', 'sensor', 'because', 'it'];
+var IDS = [791, 15233, 12373, 279, 12271, 1606, 433];
+var D = 6;
+function hash(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function rng(seed) {
+    return function () {
+        seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+        var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+}
+function embVec(w) { var r = rng(hash(w)); var v = []; for (var i = 0; i < D; i++) v.push(+(r() * 2 - 1).toFixed(2)); return v; }
+function posVec(p) {
+    var v = [];
+    for (var i = 0; i < D / 2; i++) {
+        var f = 1 / Math.pow(10000, 2 * i / D);
+        v.push(+Math.sin(p * f).toFixed(2), +Math.cos(p * f).toFixed(2));
+    }
+    return v;
+}
+function colr(v) {
+    var a = Math.min(1, Math.abs(v) / 1.5);
+    return v >= 0 ? 'rgba(251,191,36,' + (0.1 + 0.9 * a).toFixed(2) + ')' : 'rgba(96,165,250,' + (0.1 + 0.9 * a).toFixed(2) + ')';
+}
+function cells(vec) {
+    return '<span class="g">' + vec.map(function (v) {
+        return '<span class="cell" style="background:' + colr(v) + '" title="' + v.toFixed(2) + '"></span>';
+    }).join('') + '</span>';
+}
+var order = WORDS.map(function (_, i) { return i; });
+function renderEmbed() {
+    var h = '<div class="erow head"><span class="tkn">token</span><span class="tid">id</span><span class="g">embedding</span><span class="op"></span><span class="g">+ position</span><span class="op"></span><span class="g">= layer-1 input</span></div>';
+    order.forEach(function (wi, slot) {
+        var e = embVec(WORDS[wi]), p = posVec(slot);
+        var s = e.map(function (v, k) { return +(v + p[k]).toFixed(2); });
+        h += '<div class="erow"><span class="tkn"><span class="chip">' + WORDS[wi] + '</span></span><span class="tid">' + IDS[wi] + '</span>' +
+            cells(e) + '<span class="op" aria-hidden="true">+</span>' + cells(p) + '<span class="op" aria-hidden="true">=</span>' + cells(s) + '</div>';
+    });
+    $('#erows').innerHTML = h;
+    var changed = order.some(function (v, i) { return v !== i; });
+    $('#sentence').textContent = order.map(function (i) { return WORDS[i]; }).join(' ') +
+        (changed ? '   ← same words, new order: embeddings identical, position columns now meet different tokens' : '   ← original order');
+}
+$('#shuffle').addEventListener('click', function () {
+    var o = order.slice(), tries = 0;
+    do {
+        for (var i = o.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = o[i]; o[i] = o[j]; o[j] = t; }
+        tries++;
+    } while (o.every(function (v, i) { return v === order[i]; }) && tries < 10);
+    order = o; renderEmbed();
+});
+$('#unshuffle').addEventListener('click', function () { order = WORDS.map(function (_, i) { return i; }); renderEmbed(); });
+renderEmbed();
+
+/* ── 3 · attention ─────────────────────────────── */
+var N = WORDS.length;
+function mk(base, spec) {
+    var m = []; for (var i = 0; i < N; i++) { m.push([]); for (var j = 0; j < N; j++) m[i].push(base); }
+    Object.keys(spec).forEach(function (i) { Object.keys(spec[i]).forEach(function (j) { m[i][j] = spec[i][j]; }); });
+    return m;
+}
+var prevSpec = {};
+for (var pi = 0; pi < N; pi++) {
+    prevSpec[pi] = {};
+    prevSpec[pi][pi] = pi === 0 ? 2.0 : 0.8;
+    if (pi > 0) prevSpec[pi][pi - 1] = 3.5;
+    if (pi < N - 1) prevSpec[pi][pi + 1] = 0.5;
+}
+var HEADS = [
+    { note: 'This toy head hunts for nouns a word might refer to, so &ldquo;it&rdquo; looks back for something that can fail.',
+      S: mk(-0.6, {
+        0: { 0: 2.0 },
+        1: { 0: 0.8, 1: 1.8, 2: 1.2 },
+        2: { 0: 0.2, 1: 2.4, 2: 0.8, 4: 0.9 },
+        3: { 1: 0.8, 2: 1.2, 3: 1.0, 4: 2.2 },
+        4: { 1: 0.6, 2: 1.4, 3: 2.0, 4: 1.0, 6: 1.2 },
+        5: { 1: 1.0, 2: 1.2, 4: 1.9, 5: 0.6, 6: 0.9 },
+        6: { 0: -0.5, 1: 1.8, 2: 0.6, 3: 0.2, 4: 3.4, 5: 1.0, 6: 0.5 }
+      }) },
+    { note: 'A &ldquo;local&rdquo; head: each word mostly reads the word right before it &mdash; a pattern real models do learn.',
+      S: mk(-1.0, prevSpec) },
+    { note: 'This toy head links verbs with their subject and object, so nouns lean toward &ldquo;replaced&rdquo;.',
+      S: mk(-0.8, {
+        0: { 0: 1.6, 1: 1.0, 2: 0.4 },
+        1: { 0: 0.6, 1: 0.8, 2: 2.7 },
+        2: { 0: 0.0, 1: 2.5, 2: 1.0, 4: 1.6 },
+        3: { 1: 0.2, 2: 1.8, 3: 0.8, 4: 2.0 },
+        4: { 1: 0.4, 2: 2.9, 3: 1.1, 4: 0.8 },
+        5: { 1: 0.6, 2: 2.4, 3: 0.2, 4: 1.0, 5: 0.8 },
+        6: { 1: 0.8, 2: 1.6, 4: 1.0, 5: 2.3, 6: 0.7 }
+      }) }
+];
+var head = 0, q = 6, maskOn = true, scl = 1;
+function weights(i) {
+    var s = HEADS[head].S[i], best = -Infinity, e = [], sum = 0, j;
+    for (j = 0; j < N; j++) { if (!maskOn || j <= i) best = Math.max(best, s[j] * scl); }
+    for (j = 0; j < N; j++) { var ok = !maskOn || j <= i; var v = ok ? Math.exp(s[j] * scl - best) : 0; e.push(v); sum += v; }
+    return e.map(function (v) { return v / sum; });
+}
+function pct(w) { return w < 0.005 ? '<1%' : Math.round(w * 100) + '%'; }
+
+function drawAttn() {
+    var w = weights(q), i, j;
+    var cx = function (k) { return 50 + 100 * k; };
+    /* chips */
+    $('#chips').innerHTML = WORDS.map(function (t, k) {
+        return '<button type="button" data-q="' + k + '" aria-pressed="' + (k === q) + '">' + t + '</button>';
+    }).join('');
+    $$('#chips button').forEach(function (b) { b.addEventListener('click', function () { q = +b.dataset.q; drawAttn(); }); });
+    /* arcs */
+    var svg = '';
+    for (j = 0; j < N; j++) {
+        if (w[j] < 0.03) continue;
+        var sw = (1.2 + 9 * w[j]).toFixed(1), op = (0.2 + 0.8 * w[j]).toFixed(2), d, lx, ly;
+        if (j === q) {
+            d = 'M' + (cx(j) - 13) + ' 146 C' + (cx(j) - 30) + ' 112 ' + (cx(j) + 30) + ' 112 ' + (cx(j) + 13) + ' 146';
+            lx = cx(j); ly = 106;
+        } else {
+            var dx = Math.abs(cx(q) - cx(j)), h = Math.min(122, 24 + dx * 0.27), mid = (cx(q) + cx(j)) / 2;
+            d = 'M' + cx(q) + ' 146 Q' + mid + ' ' + (146 - 2 * h) + ' ' + cx(j) + ' 146';
+            lx = mid; ly = 146 - h - 6;
+        }
+        svg += '<path class="a" d="' + d + '" style="stroke-width:' + sw + ';opacity:' + op + '"/>';
+        if (w[j] >= 0.1) svg += '<text x="' + lx + '" y="' + ly + '">' + pct(w[j]) + '</text>';
+    }
+    svg += '<circle class="qdot" cx="' + cx(q) + '" cy="147" r="4"/>';
+    var arcs = $('#arcs'); arcs.innerHTML = svg;
+    var order2 = w.map(function (v, k) { return [v, k]; }).sort(function (a, b) { return b[0] - a[0]; });
+    arcs.setAttribute('aria-label', 'Attention arcs for the word ' + WORDS[q] + ': ' +
+        order2.slice(0, 3).filter(function (x) { return x[0] > 0.03; }).map(function (x) { return pct(x[0]) + ' on ' + WORDS[x[1]]; }).join(', '));
+    /* heatmap */
+    var hm = '<span></span>';
+    WORDS.forEach(function (t) { hm += '<span class="colh">' + t + '</span>'; });
+    for (i = 0; i < N; i++) {
+        var wi = weights(i);
+        hm += '<button type="button" class="rowh" data-q="' + i + '" aria-pressed="' + (i === q) + '">' + WORDS[i] + '</button>';
+        for (j = 0; j < N; j++) {
+            var masked = maskOn && j > i;
+            if (masked) { hm += '<span class="c m' + (i === q ? ' qrow' : '') + '" title="masked">×</span>'; continue; }
+            var a = 0.06 + 0.94 * wi[j];
+            hm += '<span class="c' + (i === q ? ' qrow' : '') + '" style="background:rgba(192,132,252,' + a.toFixed(2) + ');' + (a < 0.5 ? 'color:#e9d5ff' : '') + '" title="' + WORDS[i] + ' reads ' + WORDS[j] + ': ' + pct(wi[j]) + '">' + (wi[j] >= 0.1 ? Math.round(wi[j] * 100) : '') + '</span>';
+        }
+    }
+    $('#hm').innerHTML = hm;
+    $$('#hm .rowh').forEach(function (b) { b.addEventListener('click', function () { q = +b.dataset.q; drawAttn(); }); });
+    /* under the hood */
+    $('#uhWord').textContent = WORDS[q];
+    var rows = '';
+    for (j = 0; j < N; j++) {
+        var masked2 = maskOn && j > q;
+        rows += '<tr' + (j === q ? ' class="self"' : '') + '><td>' + WORDS[j] + '</td>' +
+            '<td class="num">' + (masked2 ? '−∞' : (HEADS[head].S[q][j] * scl).toFixed(1)) + '</td>' +
+            '<td><span class="bar"><i style="width:' + (w[j] * 100).toFixed(1) + '%"></i></span></td>' +
+            '<td class="num">' + (masked2 ? 'masked' : pct(w[j])) + '</td></tr>';
+    }
+    $('#uhBody').innerHTML = rows;
+    var top3 = order2.slice(0, 3).filter(function (x) { return x[0] >= 0.02; });
+    var rest = 1 - top3.reduce(function (s, x) { return s + x[0]; }, 0);
+    $('#blend').innerHTML = WORDS[q] + '′ = ' + top3.map(function (x) { return x[0].toFixed(2) + '·V(' + WORDS[x[1]] + ')'; }).join(' + ') + (rest > 0.015 ? ' + … (' + rest.toFixed(2) + ' from the rest)' : '');
+    var t0 = order2[0];
+    var msg = '“' + WORDS[q] + '” puts <b>' + pct(t0[0]) + '</b> of its attention on “' + WORDS[t0[1]] + '”' + (t0[1] === q ? ' (itself)' : '') + '. ';
+    if (head === 0 && q === 6 && maskOn && scl > 0.8 && scl < 1.3) msg += 'After this layer the vector for “it” carries information about “sensor” &mdash; that is how a pronoun gets resolved. ';
+    $('#insight').innerHTML = msg + HEADS[head].note;
+}
+$$('#heads button').forEach(function (b) {
+    b.addEventListener('click', function () {
+        head = +b.dataset.h;
+        $$('#heads button').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+        drawAttn();
+    });
+});
+$('#mask').addEventListener('change', function (e) { maskOn = e.target.checked; drawAttn(); });
+$('#scoreScale').addEventListener('input', function (e) { scl = +e.target.value; $('#scaleOut').textContent = '×' + scl.toFixed(1); drawAttn(); });
+drawAttn();
+(function () { var sc = $('#chips').closest('.scrollx'); sc.scrollLeft = sc.scrollWidth; })();
+
+/* attention cost canvas */
+var cv = $('#costCv'), cctx = cv.getContext('2d');
+function drawCost() {
+    var n = +$('#nTok').value, size = cv.clientWidth || 280, dpr = window.devicePixelRatio || 1;
+    cv.width = size * dpr; cv.height = size * dpr;
+    cctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cctx.clearRect(0, 0, size, size);
+    var c = size / n, pad = n > 32 ? 0.3 : 0.6;
+    for (var i = 0; i < n; i++) for (var j = 0; j < n; j++) {
+        cctx.fillStyle = j <= i ? 'rgba(192,132,252,.92)' : 'rgba(148,163,184,.16)';
+        cctx.fillRect(j * c + pad, i * c + pad, c - 2 * pad, c - 2 * pad);
+    }
+    $('#nOut').textContent = n;
+    $('#allPairs').textContent = (n * n).toLocaleString();
+    $('#maskPairs').textContent = (n * (n + 1) / 2).toLocaleString();
+    cv.setAttribute('aria-label', 'Grid of ' + n + ' by ' + n + ' attention scores; the lower triangle including the diagonal is computed under a causal mask');
+}
+$('#nTok').addEventListener('input', drawCost);
+window.addEventListener('resize', drawCost);
+drawCost();
+
+/* ── 4 · predict ───────────────────────────────── */
+var END = '⟨end⟩', MAXGEN = 12;
+var SUBJ = ['technician', 'sensor', 'unit', 'alarm', 'chiller'];
+var SUBJ_T = [['failed', 3.5], ['was', 3.0], ['stopped', 2.6], ['kept', 1.8], ['.', 1.0]];
+var GENERIC = [['.', 4.0], [',', 2.2], ['and', 1.8], ['overnight', 1.6], ['again', 1.2]];
+var NEXT = {
+    'it': [['failed', 4.4], ['was', 3.3], ['had', 2.9], ['stopped', 2.8], ['kept', 1.6]],
+    'failed': [['.', 3.4], ['again', 3.2], ['during', 2.9], ['twice', 2.2], ['after', 2.0]],
+    'was': [['faulty', 3.6], ['offline', 3.0], ['stuck', 2.8], ['unreliable', 2.5], ['drifting', 2.3]],
+    'had': [['failed', 3.4], ['drifted', 3.0], ['been', 2.9], ['overheated', 2.6], ['stopped', 2.0]],
+    'been': [['faulty', 3.2], ['drifting', 2.9], ['failing', 2.8], ['offline', 2.5], ['unreliable', 2.2]],
+    'stopped': [['responding', 3.8], ['working', 3.5], ['reporting', 2.8], ['again', 2.1], ['.', 2.0]],
+    'kept': [['failing', 3.6], ['drifting', 3.0], ['tripping', 2.6], ['resetting', 2.4], ['stalling', 2.0]],
+    '.': [[END, 5.0], ['The', 1.8], ['It', 1.4]],
+    'The': [['technician', 3.0], ['sensor', 2.8], ['unit', 2.0], ['alarm', 1.8], ['chiller', 1.5]]
+};
+NEXT['It'] = NEXT['it'];
+var gen = [], autoTimer = null, finished = false, lastList = [];
+function listFor(last) {
+    var l = NEXT[last] || (SUBJ.indexOf(last) >= 0 ? SUBJ_T : GENERIC);
+    return l.filter(function (x) { return x[0] !== last; }).slice().sort(function (a, b) { return b[1] - a[1]; });
+}
+function softmax(list, T) {
+    var m = Math.max.apply(null, list.map(function (x) { return x[1]; }));
+    var e = list.map(function (x) { return Math.exp((x[1] - m) / T); });
+    var s = e.reduce(function (a, b) { return a + b; }, 0);
+    return e.map(function (v) { return v / s; });
+}
+function renderGen() {
+    var last = gen.length ? gen[gen.length - 1] : 'it';
+    finished = last === END || gen.length >= MAXGEN;
+    var T = +$('#temp').value;
+    $('#tempOut').textContent = T.toFixed(1);
+    $('#tempNote').textContent = T <= 0.4 ? 'Very low T: the top token takes almost all the probability — near-deterministic. Good for code and refactors.'
+        : T < 1.4 ? 'Around T = 1 the model’s own probabilities are used as-is.'
+        : 'High T flattens the bars: unlikely tokens get a real chance. More varied, more risk — fine for brainstorming.';
+    $('#ctx').innerHTML = WORDS.map(function (w) { return '<span class="chip">' + w + '</span>'; }).join('') +
+        gen.map(function (w) { return '<span class="chip gen">' + w + '</span>'; }).join('') +
+        (finished ? '' : '<span class="chip q">?</span>');
+    lastList = finished ? [] : listFor(last);
+    var p = finished ? [] : softmax(lastList, T);
+    $('#cands').innerHTML = lastList.map(function (x, i) {
+        return '<button type="button" class="cand" data-i="' + i + '" aria-label="Pick ' + x[0] + ', ' + pct(p[i]) + '"><span class="w">' + x[0] + '</span><span class="lg">' + x[1].toFixed(1) + '</span><span class="bar"><i style="width:' + (p[i] * 100).toFixed(1) + '%"></i></span><span class="pc">' + pct(p[i]) + '</span></button>';
+    }).join('') || '<p class="note">Nothing left to predict.</p>';
+    $$('#cands .cand').forEach(function (b) { b.addEventListener('click', function () { stopAuto(); pick(+b.dataset.i); }); });
+    ['sample', 'greedy', 'auto'].forEach(function (id) { $('#' + id).disabled = finished && id !== 'auto' ? true : (finished && !autoTimer); });
+    $('#genStatus').textContent = last === END ? 'Reached ⟨end⟩ — the model chose to stop. Reset to try again.'
+        : gen.length >= MAXGEN ? 'Stopped at ' + MAXGEN + ' tokens for this demo. Reset to try again.' : '';
+    $('#passInfo').textContent = finished ? '' : 'Next is forward pass #' + (gen.length + 1) + ': ' + (WORDS.length + gen.length) + ' tokens in, 1 token out.';
+}
+function pick(i) {
+    if (finished || !lastList[i]) return;
+    gen.push(lastList[i][0]);
+    renderGen();
+}
+function sampleOnce() {
+    var p = softmax(lastList, +$('#temp').value), r = Math.random(), c = 0;
+    for (var i = 0; i < p.length; i++) { c += p[i]; if (r <= c) return pick(i); }
+    pick(p.length - 1);
+}
+function stopAuto() { if (autoTimer) { clearInterval(autoTimer); autoTimer = null; } $('#auto').innerHTML = '&#9654; Auto-generate'; }
+$('#sample').addEventListener('click', function () { stopAuto(); sampleOnce(); });
+$('#greedy').addEventListener('click', function () { stopAuto(); pick(0); });
+$('#auto').addEventListener('click', function () {
+    if (autoTimer) { stopAuto(); renderGen(); return; }
+    if (finished) return;
+    $('#auto').innerHTML = '&#10074;&#10074; Stop';
+    autoTimer = setInterval(function () {
+        if (finished) { stopAuto(); renderGen(); return; }
+        sampleOnce();
+        if (finished) { stopAuto(); renderGen(); }
+    }, 750);
+});
+$('#resetGen').addEventListener('click', function () { stopAuto(); gen = []; renderGen(); });
+$('#temp').addEventListener('input', renderGen);
+renderGen();
+})();
+</script>
+</body>
+</html>

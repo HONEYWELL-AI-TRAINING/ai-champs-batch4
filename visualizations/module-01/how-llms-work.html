@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="A one-page interactive explainer of how a large language model works: tokens, embeddings, attention, next-token prediction, training, the context window and agents.">
+<title>How an LLM Really Works — Module 01</title>
+<style>
+:root {
+    --primary: #3498db;
+    --secondary: #2ecc71;
+    --accent: #e74c3c;
+    --bg: #0f172a;
+    --ink: #0b1220;
+    --surface: #1e293b;
+    --surface-hover: #334155;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --border: #334155;
+    --blue: #60a5fa;
+    --amber: #fbbf24;
+    --violet: #a78bfa;
+    --teal: #2dd4bf;
+    --pink: #f472b6;
+    --green: #4ade80;
+    --red: #f87171;
+    --orange: #fb923c;
+    --radius: 16px;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+body {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    -webkit-text-size-adjust: 100%;
+}
+:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+code, kbd { font-family: var(--mono); font-size: .88em; background: rgba(148,163,184,.14); padding: .05rem .35rem; border-radius: 5px; }
+a { color: var(--blue); }
+h3 { font-size: 1.05rem; margin-bottom: .5rem; }
+h4 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); margin-bottom: .4rem; }
+small { color: var(--text-muted); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip { position: absolute; left: -999px; top: 0; background: var(--amber); color: #111; padding: .5rem 1rem; z-index: 100; border-radius: 0 0 8px 0; }
+.skip:focus { left: 0; }
+
+/* ── Sticky nav ───────────────────────────── */
+.topnav { position: sticky; top: 0; z-index: 50; background: rgba(15,23,42,.92); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
+.topnav ul { list-style: none; display: flex; gap: .25rem; max-width: 1100px; margin: 0 auto; padding: .5rem 1rem; overflow-x: auto; scrollbar-width: none; }
+.topnav ul::-webkit-scrollbar { display: none; }
+.topnav a { display: block; white-space: nowrap; padding: .35rem .8rem; border-radius: 999px; color: var(--text-muted); text-decoration: none; font-size: .85rem; font-weight: 500; }
+.topnav a:hover { color: var(--text); background: var(--surface); }
+.topnav a[aria-current="true"] { background: #2563eb; color: #fff; }
+
+.noscript { padding: 1rem; text-align: center; background: #7c2d12; }
+
+/* ── Hero ─────────────────────────────────── */
+.hero { position: relative; overflow: hidden; padding: 4.5rem 1.25rem 3.25rem; text-align: center; border-bottom: 1px solid var(--border);
+    background:
+      radial-gradient(1100px 480px at 50% -10%, rgba(52,152,219,.30), transparent 60%),
+      radial-gradient(700px 420px at 92% 115%, rgba(167,139,250,.22), transparent 60%),
+      radial-gradient(600px 360px at 4% 110%, rgba(45,212,191,.14), transparent 60%), var(--bg); }
+.hero > *:not(.drift) { position: relative; z-index: 1; }
+.badge { display: inline-block; background: rgba(37,99,235,.25); border: 1px solid #3b82f6; color: #bfdbfe; padding: .25rem .85rem; border-radius: 999px; font-size: .8rem; font-weight: 600; letter-spacing: .02em; }
+.hero h1 { font-size: clamp(2.1rem, 6.5vw, 3.6rem); font-weight: 800; letter-spacing: -.025em; line-height: 1.1; margin: 1rem 0 .9rem; }
+.grad { color: var(--blue); }
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+    .grad { background: linear-gradient(90deg, var(--blue), var(--violet) 55%, var(--pink)); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+}
+.sub { max-width: 62ch; margin: 0 auto 1.75rem; color: #cbd5e1; font-size: clamp(1rem, 2.4vw, 1.18rem); }
+.ladder { list-style: none; display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; max-width: 900px; margin: 0 auto .6rem; }
+.ladder li { font-size: .82rem; border: 1px dashed #475569; color: #8da0b8; border-radius: 999px; padding: .25rem .8rem; }
+.ladder li span { font-family: var(--mono); margin-right: .4rem; opacity: .8; }
+.ladder li.on { border: 1px solid var(--blue); background: rgba(96,165,250,.12); color: var(--text); }
+.ladder li.on a { color: inherit; text-decoration: none; }
+.ladder li.on:hover { background: rgba(96,165,250,.25); }
+.ladder-cap { color: var(--text-muted); font-size: .8rem; }
+
+.drift span { position: absolute; font-family: var(--mono); font-size: .85rem; padding: .15rem .55rem; border-radius: 6px; border: 1px solid rgba(148,163,184,.28); background: rgba(30,41,59,.65); color: #8da0b8; animation: float 14s ease-in-out infinite; }
+.drift span:nth-child(1) { left: 4%;  top: 16%; animation-delay: -2s; }
+.drift span:nth-child(2) { left: 11%; top: 58%; animation-delay: -6s; color: var(--amber); }
+.drift span:nth-child(3) { left: 3%;  top: 80%; animation-delay: -9s; }
+.drift span:nth-child(4) { right: 5%; top: 14%; animation-delay: -4s; color: var(--teal); }
+.drift span:nth-child(5) { right: 10%; top: 55%; animation-delay: -11s; }
+.drift span:nth-child(6) { right: 3%; top: 82%; animation-delay: -7s; color: var(--violet); }
+@media (max-width: 760px) { .drift { display: none; } }
+@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+
+/* ── Layout ───────────────────────────────── */
+main { max-width: 1100px; margin: 0 auto; padding: 0 1.25rem 3rem; }
+.sec { padding-top: 3.75rem; }
+.sec-head { display: flex; align-items: baseline; gap: .8rem; margin-bottom: .5rem; }
+.sec-num { font-family: var(--mono); color: var(--amber); font-size: .95rem; font-weight: 700; }
+.sec h2 { font-size: clamp(1.4rem, 3.6vw, 1.95rem); line-height: 1.2; letter-spacing: -.01em; }
+.lead { color: var(--text-muted); max-width: 72ch; margin-bottom: 1.4rem; }
+.lead strong { color: var(--text); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+@media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+.hint { color: var(--text-muted); font-size: .85rem; margin-top: .6rem; }
+.callout { margin-top: 1rem; padding: .8rem 1rem; border-left: 4px solid var(--amber); background: rgba(251,191,36,.08); border-radius: 0 10px 10px 0; font-size: .92rem; }
+.callout.blue { border-color: var(--blue); background: rgba(96,165,250,.08); }
+.callout.teal { border-color: var(--teal); background: rgba(45,212,191,.08); }
+
+/* ── Buttons & controls ───────────────────── */
+.btn-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .9rem; }
+.btn { background: var(--surface-hover); border: 1px solid #475569; border-radius: 10px; padding: .5rem .95rem; font-weight: 600; font-size: .88rem; transition: background .2s, transform .1s, border-color .2s; }
+.btn:hover:not(:disabled) { background: #3f4f69; border-color: #64748b; }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.primary { background: #2563eb; border-color: #3b82f6; color: #fff; }
+.btn.primary:hover:not(:disabled) { background: #1d4ed8; }
+.btn.ghost { background: transparent; }
+.btn[aria-pressed="true"] { background: var(--amber); border-color: var(--amber); color: #1a1405; }
+.btn.pulse { animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(37,99,235,.7); } 50% { box-shadow: 0 0 0 8px rgba(37,99,235,0); } }
+input[type="range"] { width: 100%; accent-color: var(--amber); height: 1.6rem; }
+.ticks { display: flex; justify-content: space-between; gap: .5rem; font-size: .72rem; color: var(--text-muted); margin-top: .1rem; }
+.ticks span:nth-child(2) { text-align: center; }
+.ticks span:last-child { text-align: right; }
+label { font-weight: 600; font-size: .9rem; }
+.lbl-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: .2rem; }
+.tk-label { display: block; margin-bottom: .3rem; }
+output { font-family: var(--mono); color: var(--amber); }
+
+/* ── Token stream & probability bars ──────── */
+.stream { font-family: var(--mono); font-size: clamp(.9rem, 2.6vw, 1.18rem); background: var(--ink); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem; min-height: 3.8rem; overflow-wrap: anywhere; line-height: 2; margin-bottom: 1.1rem; }
+.stream .p { color: var(--text-muted); }
+.tok { display: inline-block; white-space: pre; padding: 0 .2rem; border-radius: 6px; background: rgba(96,165,250,.16); border-bottom: 2px solid var(--blue); }
+.tok.new { animation: pop .5s cubic-bezier(.2,1.4,.4,1); }
+.eos { display: inline-block; margin-left: .35rem; padding: 0 .4rem; border-radius: 6px; border: 1px dashed var(--teal); color: var(--teal); font-size: .8em; }
+.caret { display: inline-block; width: .6ch; height: 1.15em; background: var(--amber); vertical-align: text-bottom; margin-left: 2px; animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+@keyframes pop { 0% { transform: scale(.5); background: rgba(251,191,36,.7); } 100% { transform: scale(1); } }
+.gen-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 1.5rem; }
+@media (max-width: 860px) { .gen-grid { grid-template-columns: 1fr; } }
+.bars { list-style: none; display: grid; gap: .4rem; }
+.mrow, .cand { display: grid; grid-template-columns: 7rem 1fr 3.1rem; align-items: center; gap: .6rem; width: 100%; background: var(--ink); border: 1px solid var(--border); border-radius: 10px; padding: .45rem .65rem; text-align: left; }
+.mrow.four { grid-template-columns: 5.2rem 2.6rem 1fr 3.1rem; }
+.cand { transition: border-color .2s, transform .1s; }
+.cand:hover { border-color: var(--amber); }
+.cand:active { transform: translateY(1px); }
+.t { font-family: var(--mono); font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.track { display: block; height: 12px; border-radius: 99px; background: #243247; overflow: hidden; }
+.fill { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, var(--blue), var(--violet)); transition: width .5s cubic-bezier(.2,.8,.2,1); }
+.top .fill { background: linear-gradient(90deg, var(--amber), var(--orange)); }
+.truth .fill { background: linear-gradient(90deg, var(--green), var(--teal)); }
+.pct { font-family: var(--mono); font-size: .85rem; text-align: right; color: var(--text-muted); }
+.sc { font-family: var(--mono); font-size: .8rem; color: var(--violet); }
+.done-msg { padding: 1rem; border: 1px dashed var(--teal); border-radius: 10px; color: var(--teal); text-align: center; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-top: 1rem; }
+.stat { background: var(--ink); border: 1px solid var(--border); border-radius: 10px; padding: .55rem .75rem; }
+.stat span { display: block; font-size: .72rem; color: var(--text-muted); line-height: 1.3; }
+.stat b { font-family: var(--mono); font-size: 1.2rem; color: var(--amber); }
+
+/* ── Pipeline journey ─────────────────────── */
+.jh { margin: 0; }
+.journey-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: .9rem; }
+.rail { position: relative; height: 6px; margin: 0 0 .9rem; background: #243247; border-radius: 99px; }
+.rail-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 99px; background: linear-gradient(90deg, var(--blue), var(--amber)); transition: width .7s cubic-bezier(.6,.1,.2,1); }
+.packet { position: absolute; top: 50%; left: 0; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; background: radial-gradient(circle, #fff 0 25%, var(--amber) 55%, transparent 72%); box-shadow: 0 0 18px 5px rgba(251,191,36,.65); transition: left .7s cubic-bezier(.6,.1,.2,1); }
+.stations { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: .5rem; }
+.station { display: flex; flex-direction: column; align-items: center; gap: .2rem; padding: .65rem .35rem; border-radius: 12px; background: var(--ink); border: 1px solid var(--border); text-align: center; transition: border-color .25s, background .25s, transform .15s; }
+.station:hover { border-color: #64748b; transform: translateY(-2px); }
+.station .n { font-size: .7rem; color: var(--text-muted); font-family: var(--mono); }
+.station .ic { font-family: var(--mono); font-weight: 700; font-size: 1.15rem; color: var(--blue); min-height: 1.6rem; display: flex; align-items: center; }
+.station .nm { font-size: .8rem; font-weight: 600; line-height: 1.2; }
+.station.passed { border-color: rgba(45,212,191,.5); }
+.station.passed .ic { color: var(--teal); }
+.station[aria-selected="true"] { border-color: var(--amber); background: linear-gradient(180deg, rgba(251,191,36,.16), var(--ink)); box-shadow: 0 0 0 1px var(--amber) inset; }
+.station[aria-selected="true"] .ic { color: var(--amber); }
+@media (max-width: 860px) { .stations { grid-template-columns: repeat(2, minmax(0,1fr)); } .rail { display: none; } }
+.stpanel { display: grid; grid-template-columns: 1fr 1.15fr; gap: 1.5rem; margin-top: 1rem; padding: 1.25rem; background: var(--ink); border: 1px solid var(--border); border-radius: 14px; }
+@media (max-width: 860px) { .stpanel { grid-template-columns: 1fr; } }
+@media (max-width: 520px) {
+    .stpanel { padding: .9rem; }
+    .mrow.four { grid-template-columns: 3.6rem 2.2rem 1fr 2.6rem; gap: .4rem; padding: .45rem .5rem; }
+    .mrow.four .t { font-size: .8rem; }
+}
+.stpanel h3 { font-size: 1.25rem; color: var(--amber); }
+.stpanel p { color: #cbd5e1; margin-bottom: .7rem; }
+.matters { border-left: 3px solid var(--teal); padding: .1rem 0 .1rem .8rem; font-size: .92rem; color: #cbd5e1; }
+.matters b { color: var(--teal); }
+.vis { min-width: 0; }
+.vis .cap { font-size: .8rem; color: var(--text-muted); margin-top: .6rem; }
+.chips { display: flex; flex-wrap: wrap; gap: .3rem; }
+.chip { font-family: var(--mono); font-size: .88rem; padding: .15rem .45rem; border-radius: 6px; white-space: pre; border: 1px solid; }
+.c0 { background: rgba(96,165,250,.18);  border-color: rgba(96,165,250,.6); }
+.c1 { background: rgba(251,191,36,.16);  border-color: rgba(251,191,36,.6); }
+.c2 { background: rgba(167,139,250,.18); border-color: rgba(167,139,250,.6); }
+.c3 { background: rgba(45,212,191,.16);  border-color: rgba(45,212,191,.6); }
+.c4 { background: rgba(244,114,182,.16); border-color: rgba(244,114,182,.6); }
+.c5 { background: rgba(74,222,128,.16);  border-color: rgba(74,222,128,.6); }
+.idrow { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .3rem; }
+.idrow span { font-family: var(--mono); font-size: .78rem; color: var(--violet); text-align: center; }
+.idcol { display: flex; flex-direction: column; align-items: center; }
+.heat { display: grid; gap: 3px; }
+.heat-row { display: grid; grid-template-columns: 5.2rem 1fr; gap: .5rem; align-items: center; font-family: var(--mono); font-size: .78rem; }
+.heat-cells { display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; }
+.heat-cells i { display: block; height: 16px; border-radius: 3px; }
+.layers { display: grid; gap: .4rem; }
+.layer { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; position: relative; }
+.layer span { padding: .4rem .5rem; border-radius: 8px; font-size: .78rem; text-align: center; font-weight: 600; }
+.layer .at { background: rgba(167,139,250,.2); border: 1px solid var(--violet); }
+.layer .ff { background: rgba(45,212,191,.16); border: 1px solid var(--teal); }
+.layer-lbl { font-size: .72rem; color: var(--text-muted); font-family: var(--mono); }
+.dots { text-align: center; color: var(--text-muted); letter-spacing: .3em; }
+.out-vec { text-align: center; padding: .45rem; border-radius: 8px; border: 1px dashed var(--amber); color: var(--amber); font-size: .82rem; }
+.wheel { display: flex; height: 34px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); position: relative; }
+.wheel span { display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: .72rem; color: #0b1220; font-weight: 700; overflow: hidden; white-space: nowrap; }
+.wheel-ptr { position: relative; height: 22px; }
+.wheel-ptr i { position: absolute; top: 0; width: 0; height: 0; margin-left: -8px; border: 8px solid transparent; border-bottom: 12px solid #fff; border-top: 0; transition: left .6s cubic-bezier(.3,1.4,.5,1); }
+.passes { font-family: var(--mono); font-size: .8rem; display: grid; gap: .35rem; }
+.passes div { background: #131c2e; border: 1px solid var(--border); border-radius: 8px; padding: .35rem .6rem; overflow-wrap: anywhere; }
+.passes em { font-style: normal; color: var(--text-muted); margin-right: .5rem; }
+.passes b { color: var(--amber); background: rgba(251,191,36,.14); border-radius: 4px; padding: 0 .25rem; }
+.vis-svg { width: 100%; height: auto; display: block; }
+
+/* ── Tokenizer ────────────────────────────── */
+textarea { width: 100%; min-height: 5.2rem; resize: vertical; background: var(--ink); color: var(--text); border: 1px solid #475569; border-radius: 10px; padding: .7rem .85rem; font-family: var(--mono); font-size: .92rem; line-height: 1.5; }
+textarea:focus-visible { outline-color: var(--amber); }
+.presets { display: flex; flex-wrap: wrap; gap: .4rem; margin: .7rem 0; align-items: center; }
+.presets > span { font-size: .82rem; color: var(--text-muted); margin-right: .2rem; }
+.tk-out { background: var(--ink); border: 1px solid var(--border); border-radius: 12px; padding: .9rem; margin-top: .8rem; min-height: 4.5rem; }
+.tk-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem; margin-top: .8rem; }
+@media (max-width: 520px) { .tk-stats { grid-template-columns: 1fr; } }
+.meter { position: relative; height: 12px; border-radius: 99px; background: #243247; margin: .5rem 0 1.3rem; }
+.meter .m-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; background: linear-gradient(90deg, var(--pink), var(--amber), var(--green)); transition: width .4s; }
+.meter .m-tick { left: 66.6%; position: absolute; top: -4px; bottom: -4px; width: 2px; background: #fff; }
+.meter .m-tick span { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); font-size: .72rem; white-space: nowrap; color: var(--text-muted); }
+.meter-lbl { font-size: .82rem; color: var(--text-muted); }
+
+/* ── Attention ────────────────────────────── */
+.attn-scroll { overflow-x: auto; padding-bottom: .3rem; }
+.attn-inner { position: relative; min-width: 520px; padding-top: 140px; }
+.attn-svg { position: absolute; left: 0; top: 0; width: 100%; height: 140px; overflow: visible; }
+.attn-svg path { fill: none; stroke: var(--violet); stroke-linecap: round; transition: opacity .3s, stroke-width .3s; }
+.attn-svg circle { fill: var(--pink); }
+.attn-tokens { display: flex; justify-content: space-between; gap: .35rem; }
+.at-btn { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: .15rem; padding: .5rem .2rem .4rem; border-radius: 10px; border: 1px solid var(--border); background: rgba(167,139,250,calc(var(--w, 0) * .75 + .04)); transition: background .3s, border-color .2s; }
+.at-btn:hover { border-color: var(--violet); }
+.at-btn .w { font-size: .95rem; font-weight: 600; }
+.at-btn .p { font-family: var(--mono); font-size: .72rem; color: #cbd5e1; min-height: 1.1em; }
+.at-btn[aria-pressed="true"] { border: 2px solid var(--pink); }
+.at-btn.future { opacity: .45; }
+@media (max-width: 560px) {
+    .attn-inner { min-width: 0; }
+    .attn-tokens { gap: .2rem; }
+    .at-btn { padding: .45rem .1rem .35rem; }
+    .at-btn .w { font-size: .72rem; }
+    .at-btn .p { font-size: .62rem; }
+}
+.readout { margin-top: 1rem; padding: .75rem 1rem; background: var(--ink); border: 1px solid var(--border); border-radius: 10px; min-height: 3.3rem; }
+
+/* ── Training ─────────────────────────────── */
+.small-p { font-size: .9rem; color: #cbd5e1; margin-bottom: .8rem; }
+.loss-row { display: flex; gap: 1.5rem; margin-top: .9rem; align-items: baseline; flex-wrap: wrap; }
+.loss-row b { font-family: var(--mono); font-size: 1.4rem; color: var(--amber); margin: 0 .3rem; }
+.loss-row small { display: block; }
+.step-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; margin: .5rem 0 .8rem; }
+@media (max-width: 520px) { .step-tabs { grid-template-columns: repeat(2, 1fr); } }
+.step-tab { padding: .5rem .3rem; border-radius: 10px; background: var(--ink); border: 1px solid var(--border); text-align: center; font-size: .78rem; font-weight: 600; line-height: 1.25; transition: border-color .2s, background .2s; }
+.step-tab span { display: block; font-family: var(--mono); font-size: .68rem; color: var(--text-muted); }
+.step-tab[aria-selected="true"] { border-color: var(--amber); background: rgba(251,191,36,.12); }
+.term { background: var(--ink); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.term-bar { display: flex; gap: .35rem; align-items: center; padding: .4rem .7rem; background: #131c2e; border-bottom: 1px solid var(--border); font-size: .72rem; color: var(--text-muted); }
+.term-bar i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.term-bar i:nth-child(1) { background: #f87171; } .term-bar i:nth-child(2) { background: #fbbf24; } .term-bar i:nth-child(3) { background: #4ade80; }
+.term pre { font-family: var(--mono); font-size: .8rem; padding: .8rem; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 11.5rem; line-height: 1.55; }
+.term .q { color: var(--text-muted); }
+.stage-desc { font-size: .9rem; color: #cbd5e1; margin-bottom: .6rem; min-height: 4.2rem; }
+.stage-note { font-size: .78rem; color: var(--text-muted); margin-top: .4rem; }
+
+/* ── Context window ───────────────────────── */
+.ctx-bar { display: flex; height: 70px; border-radius: 12px; overflow: hidden; background: var(--ink); border: 1px solid var(--border); }
+.seg { height: 100%; display: flex; align-items: center; justify-content: center; font-size: .7rem; font-weight: 700; color: #0b1220; overflow: hidden; white-space: nowrap; border-right: 1px solid rgba(11,18,32,.65); transition: width .45s cubic-bezier(.2,.8,.2,1); min-width: 0; }
+.seg.sys { background: var(--blue); } .seg.pin { background: var(--teal); }
+.seg.file { background: var(--violet); } .seg.file:nth-of-type(even) { background: #c4b5fd; }
+.seg.hist { background: var(--amber); } .seg.hist:nth-of-type(even) { background: #fcd34d; }
+.seg.task { background: var(--green); } .seg.free { background: transparent; }
+.seg.ans { background: repeating-linear-gradient(45deg, #475569 0 6px, #334155 6px 12px); color: #e2e8f0; }
+.cap-line { display: flex; flex-wrap: wrap; gap: 0 1rem; justify-content: space-between; font-family: var(--mono); font-size: .75rem; color: var(--text-muted); margin-top: .3rem; }
+.legend { display: flex; flex-wrap: wrap; gap: .3rem 1rem; margin-top: .8rem; font-size: .8rem; color: #cbd5e1; }
+.sw-blue { background: var(--blue); } .sw-teal { background: var(--teal); } .sw-violet { background: var(--violet); }
+.sw-amber { background: var(--amber); } .sw-green { background: var(--green); } .sw-grey { background: #475569; }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: .35rem; vertical-align: -1px; }
+.switch { display: inline-flex; align-items: center; gap: .55rem; font-size: .88rem; font-weight: 600; cursor: pointer; margin: 0; padding: .35rem .2rem; justify-content: flex-start; }
+.switch input { width: 1.15rem; height: 1.15rem; accent-color: var(--teal); }
+.ctx-status { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; margin-top: 1rem; }
+@media (max-width: 700px) { .ctx-status { grid-template-columns: 1fr; } }
+.verdict { padding: .8rem 1rem; border-radius: 10px; border: 1px solid var(--border); background: var(--ink); font-size: .9rem; }
+.verdict.ok { border-color: var(--green); } .verdict.bad { border-color: var(--red); background: rgba(248,113,113,.07); }
+.verdict b { display: block; margin-bottom: .15rem; }
+.dropped { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .4rem; }
+.dropped span { font-size: .78rem; font-family: var(--mono); text-decoration: line-through; color: var(--text-muted); border: 1px dashed #64748b; border-radius: 6px; padding: 0 .4rem; }
+
+/* ── Agent loop ───────────────────────────── */
+.agent-grid { display: grid; grid-template-columns: 340px 1fr; gap: 1.5rem; align-items: start; }
+@media (max-width: 900px) { .agent-grid { grid-template-columns: 1fr; } .agent-svg-wrap { max-width: 380px; margin: 0 auto; } }
+.agent-svg { width: 100%; height: auto; display: block; }
+.ring { fill: none; stroke: #475569; stroke-width: 2; stroke-dasharray: 6 8; animation: dash 8s linear infinite; }
+@keyframes dash { to { stroke-dashoffset: -56; } }
+.tri { fill: #64748b; }
+.ag-node rect { fill: var(--ink); stroke: #64748b; stroke-width: 1.5; transition: fill .3s, stroke .3s; }
+.ag-node text { fill: var(--text); font-size: 15px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+.ag-node.active rect { fill: #7c2d12; stroke: var(--orange); stroke-width: 2.5; }
+.goal-c { fill: var(--ink); stroke: var(--blue); stroke-width: 2; transition: fill .3s; }
+.goal-c.done { fill: #14532d; stroke: var(--green); }
+.goal-t { fill: var(--text); font-size: 15px; font-weight: 800; text-anchor: middle; }
+.goal-s { fill: var(--text-muted); font-size: 10.5px; text-anchor: middle; }
+.tools { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .8rem; }
+.tool { font-size: .78rem; padding: .25rem .65rem; border-radius: 999px; border: 1px solid var(--violet); background: rgba(167,139,250,.1); transition: background .3s, color .3s; }
+.tool.human { border-color: var(--green); background: rgba(74,222,128,.1); }
+.tool.active { background: var(--violet); color: #0b1220; font-weight: 700; }
+.tool.human.active { background: var(--green); }
+.log { list-style: none; font-family: var(--mono); font-size: .8rem; background: var(--ink); border: 1px solid var(--border); border-radius: 12px; padding: .7rem; min-height: 260px; max-height: 380px; overflow: auto; display: grid; gap: .45rem; align-content: start; }
+.log li { padding: .4rem .6rem; background: #131c2e; border-left: 3px solid var(--orange); border-radius: 0 8px 8px 0; animation: slide .35s ease; overflow-wrap: anywhere; }
+.log li b { display: block; color: var(--orange); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; }
+.log li.human { border-color: var(--green); } .log li.human b { color: var(--green); }
+.log li.done { border-color: var(--teal); } .log li.done b { color: var(--teal); }
+.log .empty { border: 1px dashed var(--border); background: none; color: var(--text-muted); animation: none; }
+@keyframes slide { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+.ladder3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: .8rem; margin-top: 1.4rem; }
+@media (max-width: 700px) { .ladder3 { grid-template-columns: 1fr; } }
+.rung { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1rem; border-top: 4px solid var(--blue); }
+.rung:nth-child(2) { border-top-color: var(--violet); } .rung:nth-child(3) { border-top-color: var(--orange); }
+.rung h3 { margin-bottom: .25rem; } .rung p { font-size: .88rem; color: #cbd5e1; }
+
+/* ── Takeaways ────────────────────────────── */
+.take { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem; margin-top: 1.2rem; }
+.take .card { grid-column: span 2; }
+.take .card:nth-child(n+4) { grid-column: span 3; }
+@media (max-width: 900px) { .take { grid-template-columns: 1fr 1fr; } .take .card, .take .card:nth-child(n+4) { grid-column: span 1; } .take .card:last-child { grid-column: span 2; } }
+@media (max-width: 560px) { .take { grid-template-columns: 1fr; } .take .card, .take .card:last-child { grid-column: span 1; } }
+.take .card { border-top: 4px solid var(--blue); }
+.take .card:nth-child(2) { border-top-color: var(--amber); } .take .card:nth-child(3) { border-top-color: var(--teal); }
+.take .card:nth-child(4) { border-top-color: var(--violet); } .take .card:nth-child(5) { border-top-color: var(--orange); }
+.take h3 { font-size: 1.02rem; } .take p { font-size: .88rem; color: #cbd5e1; }
+.take .go { display: inline-block; margin-top: .6rem; font-size: .75rem; font-family: var(--mono); color: var(--amber); }
+footer { max-width: 1100px; margin: 0 auto; padding: 2rem 1.25rem 3rem; border-top: 1px solid var(--border); color: var(--text-muted); font-size: .85rem; }
+footer ul { list-style: none; display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; margin: .5rem 0 .9rem; }
+
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<nav class="topnav" aria-label="Page sections">
+  <ul>
+    <li><a href="#predict">Predict</a></li>
+    <li><a href="#pipeline">Pipeline</a></li>
+    <li><a href="#tokens">Tokens</a></li>
+    <li><a href="#attention">Attention</a></li>
+    <li><a href="#training">Training</a></li>
+    <li><a href="#window">Window</a></li>
+    <li><a href="#agent">Agents</a></li>
+    <li><a href="#takeaways">Takeaways</a></li>
+  </ul>
+</nav>
+
+<header class="hero">
+  <div class="drift" aria-hidden="true"><span>def</span><span>·setpoint</span><span>(</span><span>int</span><span>·zone</span><span>→ token</span></div>
+  <p class="badge">Module 01 · GenAI &amp; LLM recap · Visual explainer</p>
+  <h1>How an LLM <span class="grad">really works</span></h1>
+  <p class="sub">It doesn't look things up, and it doesn't reason the way you do. It reads tokens, scores every possible next token, picks one, and goes around again. Prompts, context and agents are all built on that one loop.</p>
+  <ol class="ladder" aria-label="The course concept ladder. Highlighted rungs are explained on this page.">
+    <li><span>1</span>Generative AI</li>
+    <li class="on"><a href="#predict"><span>2</span>LLM</a></li>
+    <li class="on"><a href="#tokens"><span>3</span>Tokens</a></li>
+    <li class="on"><a href="#window"><span>4</span>Context window</a></li>
+    <li><span>5</span>Prompt</li>
+    <li><span>6</span>Context engineering</li>
+    <li class="on"><a href="#agent"><span>7</span>Agent</a></li>
+  </ol>
+  <p class="ladder-cap">Highlighted rungs are explored below. Prompt and context engineering get their own module (M03).</p>
+</header>
+
+<noscript><p class="noscript">This explainer is interactive and needs JavaScript enabled.</p></noscript>
+
+<main id="main">
+
+<!-- ═════════ 01 PREDICT ═════════ -->
+<section class="sec" id="predict" aria-labelledby="h-predict">
+  <div class="sec-head"><span class="sec-num">01</span><h2 id="h-predict">The whole trick: guess the next token</h2></div>
+  <p class="lead">Hand an LLM <code>public void UpdateZoneSetpoint(</code> and it does not "write a method". It scores every possible next token, picks one, appends it and asks again. <strong>You are the sampler</strong>: click a candidate, or let the temperature dial roll the dice.</p>
+
+  <div class="card">
+    <div class="stream" id="gStream" role="status" aria-label="Text so far"><span class="p">public void UpdateZoneSetpoint(</span><span id="gOut"></span><span class="caret" id="gCaret" aria-hidden="true"></span></div>
+    <div class="gen-grid">
+      <div>
+        <h3 id="gBarsTitle">Next-token odds <small id="gStage"></small></h3>
+        <ul class="bars" id="gBars" aria-labelledby="gBarsTitle"></ul>
+        <p class="hint">Click any row to force that token. <code>·</code> marks a leading space, which is part of the token.</p>
+      </div>
+      <div>
+        <div class="lbl-row"><label for="gTemp">Temperature</label><output id="gTempOut" for="gTemp">1.0</output></div>
+        <input type="range" id="gTemp" min="0" max="2" step="0.1" value="1">
+        <div class="ticks"><span>0 · always the top pick</span><span>1 · the model's own odds</span><span>2 · flatter, wilder</span></div>
+        <div class="btn-row">
+          <button class="btn primary" id="gStepBtn" type="button">Sample next token ▶</button>
+          <button class="btn" id="gAuto" type="button" aria-pressed="false">Auto-run</button>
+          <button class="btn ghost" id="gReset" type="button">Reset ↺</button>
+        </div>
+        <div class="stats">
+          <div class="stat"><span>Tokens generated</span><b id="gStep">0</b></div>
+          <div class="stat"><span>Model's own odds for this exact line</span><b id="gPath">—</b></div>
+        </div>
+      </div>
+    </div>
+    <p class="callout" id="gNote"><strong>Try this:</strong> run it three times at temperature 0, then three times at 2. Same prompt, same model. Only the dice changed.</p>
+  </div>
+  <p class="hint">Illustrative probabilities. The first row (<code>int</code> 48%, <code>double</code> 27%, <code>Zone</code> 14%, <code>string</code> 6%) comes from the Module 01 deck; the fifth candidate and later steps are added to complete the demo.</p>
+</section>
+
+<!-- ═════════ 02 PIPELINE ═════════ -->
+<section class="sec" id="pipeline" aria-labelledby="h-pipeline">
+  <div class="sec-head"><span class="sec-num">02</span><h2 id="h-pipeline">The journey of one prediction</h2></div>
+  <p class="lead">What happens between pressing Enter and seeing the next token? Seven stations. Click one (arrow keys work), or take the guided tour.</p>
+  <div class="card">
+    <div class="journey-head">
+      <h3 class="jh">From your text to one new token</h3>
+      <button class="btn" id="tourBtn" type="button" aria-pressed="false">▶ Guided tour</button>
+    </div>
+    <div class="rail" aria-hidden="true"><div class="rail-fill" id="railFill"></div><div class="packet" id="packet"></div></div>
+    <div class="stations" role="tablist" aria-label="Pipeline stations" id="stations"></div>
+    <div class="stpanel" role="tabpanel" id="stPanel" aria-live="polite">
+      <div><h3 id="stTitle">1 · Your prompt arrives</h3><p id="stBody"></p><p class="matters" id="stMatters"></p></div>
+      <div class="vis" id="stVis"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 03 TOKENS ═════════ -->
+<section class="sec" id="tokens" aria-labelledby="h-tokens">
+  <div class="sec-head"><span class="sec-num">03</span><h2 id="h-tokens">Tokens: the model never sees your letters</h2></div>
+  <p class="lead">Models read and write <strong>tokens</strong>, not words or lines. Tokens are the unit of input, output, cost and every limit. Type anything below and watch it get chopped up.</p>
+  <div class="card">
+    <label class="tk-label" for="tkIn">Your text</label>
+    <textarea id="tkIn" maxlength="400" spellcheck="false">The chiller setpoint drifted by 2°C overnight.</textarea>
+    <div class="presets" role="group" aria-label="Example texts">
+      <span>Try:</span>
+      <button class="btn ghost" type="button" data-p="0">Prose</button>
+      <button class="btn ghost" type="button" data-p="1">Python</button>
+      <button class="btn ghost" type="button" data-p="2">C# identifier</button>
+      <button class="btn ghost" type="button" data-p="3">Numbers</button>
+    </div>
+    <div class="tk-out"><div class="chips" id="tkChips" aria-live="polite"></div></div>
+    <div class="tk-stats">
+      <div class="stat"><span>Characters</span><b id="tkChars">0</b></div>
+      <div class="stat"><span>Tokens</span><b id="tkCount">0</b></div>
+      <div class="stat"><span>Characters per token</span><b id="tkRatio">0</b></div>
+    </div>
+    <div class="meter" role="img" aria-label="Characters per token compared with the English prose rule of thumb of about four"><div class="m-fill" id="tkMeter"></div><div class="m-tick"><span>≈ 4 for English prose</span></div></div>
+    <p class="callout blue"><strong>Why you care:</strong> input and output both count, and context-window size, rate limits and usage quotas are all measured in tokens. Code, symbols and identifiers tend to split finer than prose, so <strong>code costs more tokens per character</strong>.</p>
+  </div>
+  <p class="hint">This is a toy tokenizer built from a few rules. Real tokenizers (e.g. BPE) learn their splits from data, and every model family has its own, so exact counts differ. The deck's own splits are illustrative too.</p>
+</section>
+
+<!-- ═════════ 04 ATTENTION ═════════ -->
+<section class="sec" id="attention" aria-labelledby="h-attention">
+  <div class="sec-head"><span class="sec-num">04</span><h2 id="h-attention">Attention: how a token looks around</h2></div>
+  <p class="lead">In the transformer layers, each token pulls in information from the tokens before it. Click a word to see where it "looks". The arc thickness is the attention weight.</p>
+  <div class="card">
+    <div class="attn-scroll">
+      <div class="attn-inner" id="attnStage">
+        <svg class="attn-svg" id="attnSvg" aria-hidden="true" focusable="false"></svg>
+        <div class="attn-tokens" id="attnTokens" role="group" aria-label="Choose a word to inspect its attention"></div>
+      </div>
+    </div>
+    <p class="readout" id="attnRead" aria-live="polite"></p>
+    <p class="callout teal"><strong>Look left, never right.</strong> A next-token predictor is trained to guess the next token, so a position may only attend to itself and earlier tokens. The words that come after it do not exist yet.</p>
+  </div>
+  <p class="hint">Illustrative weights, hand-authored to show the idea. They are not read from a real model. Real models run many attention "heads" in parallel in every layer, each learning a different pattern.</p>
+</section>
+
+<!-- ═════════ 05 TRAINING ═════════ -->
+<section class="sec" id="training" aria-labelledby="h-training">
+  <div class="sec-head"><span class="sec-num">05</span><h2 id="h-training">Where the numbers come from</h2></div>
+  <p class="lead">The scores are not programmed. They are learned by guessing the next token over and over, being told the right answer, and nudging the weights. Then a raw predictor is shaped into an assistant.</p>
+  <div class="grid2">
+    <div class="card">
+      <h3>One training step: guess → compare → nudge</h3>
+      <p class="small-p">The model reads <code>The chiller setpoint drifted by 2 °C …</code> and guesses the next word. In the training text, the real next word was <strong>overnight</strong>.</p>
+      <ul class="bars" id="trRows" aria-label="Model's guess for the next word"></ul>
+      <div class="loss-row">
+        <div>Loss<b id="trLoss">2.30</b><small>surprise at the true word; lower is better</small></div>
+        <div>Nudges<b id="trSteps">0</b></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" id="trN1" type="button">Nudge ×1</button>
+        <button class="btn" id="trN10" type="button">Nudge ×10</button>
+        <button class="btn ghost" id="trReset" type="button">Reset ↺</button>
+      </div>
+      <p class="hint">Here we nudge the scores directly. A real model nudges a huge number of weights so the scores move this way, over an enormous amount of text and code.</p>
+    </div>
+    <div class="card">
+      <h3>From raw predictor to useful assistant</h3>
+      <div class="step-tabs" role="tablist" aria-label="Training stages" id="stageTabs"></div>
+      <p class="stage-desc" id="stageDesc"></p>
+      <div class="term" role="tabpanel" id="stagePanel">
+        <div class="term-bar"><i></i><i></i><i></i><span id="stageBar"></span></div>
+        <pre id="stageOut"></pre>
+      </div>
+      <p class="stage-note">Illustrative outputs: they show the <em>kind</em> of behaviour change at each stage, not real model transcripts.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 06 WINDOW ═════════ -->
+<section class="sec" id="window" aria-labelledby="h-window">
+  <div class="sec-head"><span class="sec-num">06</span><h2 id="h-window">The context window is the model's entire memory</h2></div>
+  <p class="lead">A fixed token budget is shared by <strong>everything</strong> the model sees, including the answer it is about to write. The model is stateless between calls, so whatever does not fit is simply gone. Fill the window and watch what falls off.</p>
+  <div class="card">
+    <div class="ctx-bar" id="ctxBar" role="img" aria-label="Context window usage"></div>
+    <div class="cap-line"><span id="ctxUsed"></span><span>window size: 1,000 tokens (toy scale)</span></div>
+    <div class="legend" aria-hidden="true">
+      <span><i class="sw-blue"></i>System &amp; custom instructions</span>
+      <span><i class="sw-teal"></i>Pinned rule</span>
+      <span><i class="sw-violet"></i>Repo files</span>
+      <span><i class="sw-amber"></i>Chat history</span>
+      <span><i class="sw-green"></i>Your task</span>
+      <span><i class="sw-grey"></i>Reserved for the answer</span>
+    </div>
+    <div class="btn-row">
+      <button class="btn primary" id="cxTurn" type="button">+ Chat turn</button>
+      <button class="btn" id="cxFile" type="button">+ Retrieved file</button>
+      <label class="switch"><input type="checkbox" id="cxPin"> Pin the rule in custom instructions</label>
+      <button class="btn ghost" id="cxReset" type="button">Reset ↺</button>
+    </div>
+    <div class="ctx-status">
+      <div class="verdict" id="cxVerdict" aria-live="polite"></div>
+      <div class="verdict" id="cxDrop" aria-live="polite"></div>
+    </div>
+    <p class="callout"><strong>Setup:</strong> in chat turn 1 you told the model <em>"setpoint range is 10–32 °C"</em>. This toy tool keeps your task, system prompt and retrieved files, then trims the <em>oldest</em> chat first. Keep adding turns and files and see when the rule vanishes, and what saves it.</p>
+  </div>
+  <p class="hint">Toy scale: a 1,000-token window and fixed sizes per item, so the effect is easy to see. Real windows are far larger, but the mechanics are the same. This is what context engineering controls: <em>selected, layered, compressed, task-scoped</em>.</p>
+</section>
+
+<!-- ═════════ 07 AGENT ═════════ -->
+<section class="sec" id="agent" aria-labelledby="h-agent">
+  <div class="sec-head"><span class="sec-num">07</span><h2 id="h-agent">Put the model in a loop and you get an agent</h2></div>
+  <p class="lead">One next-token prediction answers one question. Wrap it in <strong>plan → act → observe → adjust</strong>, give it tools, and it can pursue a goal over many steps. Step through a scripted example.</p>
+  <div class="card">
+    <div class="agent-grid">
+      <div class="agent-svg-wrap">
+        <svg class="agent-svg" viewBox="0 0 360 300" role="img" aria-label="The agent loop: Plan, Act, Observe and Adjust arranged in a circle around the goal, repeating until the goal is met">
+          <circle class="ring" cx="180" cy="150" r="95"/>
+          <g class="tri"><path d="M-7 -6 L7 0 L-7 6 Z" transform="translate(247.2 82.8) rotate(45)"/><path d="M-7 -6 L7 0 L-7 6 Z" transform="translate(247.2 217.2) rotate(135)"/><path d="M-7 -6 L7 0 L-7 6 Z" transform="translate(112.8 217.2) rotate(225)"/><path d="M-7 -6 L7 0 L-7 6 Z" transform="translate(112.8 82.8) rotate(315)"/></g>
+          <circle class="goal-c" id="agGoal" cx="180" cy="150" r="42"/>
+          <text class="goal-t" x="180" y="146">GOAL</text><text class="goal-s" x="180" y="164">fix failing test</text>
+          <g class="ag-node" id="agn-plan"><rect x="136" y="38" width="88" height="34" rx="10"/><text x="180" y="55">Plan</text></g>
+          <g class="ag-node" id="agn-act"><rect x="231" y="133" width="88" height="34" rx="10"/><text x="275" y="150">Act</text></g>
+          <g class="ag-node" id="agn-observe"><rect x="136" y="228" width="88" height="34" rx="10"/><text x="180" y="245">Observe</text></g>
+          <g class="ag-node" id="agn-adjust"><rect x="41" y="133" width="88" height="34" rx="10"/><text x="85" y="150">Adjust</text></g>
+        </svg>
+      </div>
+      <div>
+        <div class="tools" id="agTools" role="group" aria-label="Tools the agent can use">
+          <span class="tool" data-tool="Repo &amp; files">Repo &amp; files</span>
+          <span class="tool" data-tool="Terminal &amp; build">Terminal &amp; build</span>
+          <span class="tool" data-tool="Tests">Tests</span>
+          <span class="tool" data-tool="Tools via MCP">Tools via MCP</span>
+          <span class="tool human" data-tool="Human checkpoint">Human checkpoint</span>
+        </div>
+        <ol class="log" id="agLog" aria-live="polite" aria-label="Agent trace"></ol>
+        <div class="btn-row">
+          <button class="btn primary" id="agNext" type="button">Start ▶</button>
+          <button class="btn ghost" id="agReset" type="button">Reset ↺</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ladder3">
+    <div class="rung"><h3>LLM</h3><p>Answers one question from what is in the window.</p></div>
+    <div class="rung"><h3>Assistant</h3><p>Answers inside your IDE, grounded in the code you have open.</p></div>
+    <div class="rung"><h3>Agent</h3><p>Takes a goal, plans, calls tools, verifies, repeats. Each step up adds autonomy <strong>and the need for guardrails</strong>.</p></div>
+  </div>
+  <p class="hint">Scripted illustration of the loop, not a live agent. The checkpoint is the point: a human stays in charge of anything risky.</p>
+</section>
+
+<!-- ═════════ 08 TAKEAWAYS ═════════ -->
+<section class="sec" id="takeaways" aria-labelledby="h-take">
+  <div class="sec-head"><span class="sec-num">08</span><h2 id="h-take">Five things to carry into the rest of the course</h2></div>
+  <div class="take">
+    <div class="card"><h3>Probable ≠ correct</h3><p>Output is the most plausible continuation, not a verified fact. Fluent code can still be wrong. Specs, tests and review are how you close the gap.</p><span class="go">→ M04 · M06 · M08</span></div>
+    <div class="card"><h3>Tokens are the currency</h3><p>Input and output both count toward cost, speed and limits. More tokens is not better: extra noise dilutes focus.</p><span class="go">→ M11 observability &amp; ROI</span></div>
+    <div class="card"><h3>The window is all it knows</h3><p>The model is stateless between calls. If it is not in the window right now, it does not exist for the model.</p><span class="go">→ M03 context</span></div>
+    <div class="card"><h3>Context is the lever</h3><p>What you put in the window, and how you shape it, moves quality more than a cleverer prompt. If a new teammate couldn't do the task from your prompt, neither can the model.</p><span class="go">→ M03 · M04 spec-driven dev</span></div>
+    <div class="card"><h3>Agents are loops</h3><p>Plan, act, observe, adjust, with tools and a human checkpoint. No magic, so design the guardrails on purpose.</p><span class="go">→ M02 · M07 MCP · M09–10</span></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <p><strong>Sources.</strong> Concepts, definitions and the next-token example follow the Module 01 deck and guide (<code>guides/module-01-course-objectives-genai-llm-recap.md</code>). Numbers on this page are illustrative unless a note says otherwise.</p>
+  <ul>
+    <li><a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener noreferrer">Attention Is All You Need</a></li>
+    <li><a href="https://arxiv.org/abs/2005.14165" target="_blank" rel="noopener noreferrer">Language Models are Few-Shot Learners</a></li>
+    <li><a href="https://arxiv.org/abs/2203.02155" target="_blank" rel="noopener noreferrer">Training language models to follow instructions with human feedback</a></li>
+    <li><a href="https://arxiv.org/abs/2210.03629" target="_blank" rel="noopener noreferrer">ReAct</a></li>
+    <li><a href="https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents" target="_blank" rel="noopener noreferrer">Effective context engineering for AI agents</a></li>
+  </ul>
+  <p>AI Champions Programme · Module 01 · Course Objectives &amp; GenAI/LLM Recap</p>
+</footer>
+
+<script>
+(function () {
+'use strict';
+
+/* ─── helpers ─────────────────────────────────────────── */
+const $  = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const showTok = t => esc(t).replace(/^ /, '·').replace(/\n/g, '↵');
+const fmtPct = p => p <= 0 ? '0%' : p < 0.01 ? '<1%' : (p * 100).toFixed(p < 0.1 ? 1 : 0) + '%';
+
+// Roving-tabindex tablist: arrow keys / Home / End move selection.
+function tabs(list, onSelect) {
+    const items = $$('[role="tab"]', list);
+    function select(i, focus) {
+        items.forEach((b, k) => { b.setAttribute('aria-selected', k === i); b.tabIndex = k === i ? 0 : -1; });
+        if (focus) items[i].focus();
+        onSelect(i);
+    }
+    items.forEach((b, i) => {
+        b.addEventListener('click', () => select(i));
+        b.addEventListener('keydown', e => {
+            let n = null;
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') n = (i + 1) % items.length;
+            else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') n = (i - 1 + items.length) % items.length;
+            else if (e.key === 'Home') n = 0;
+            else if (e.key === 'End') n = items.length - 1;
+            if (n !== null) { e.preventDefault(); select(n, true); }
+        });
+    });
+    return { select, items };
+}
+
+/* ═══ 01 · next-token generator ═══════════════════════════ */
+(function () {
+    const TYPE1 = [['int',48],['double',27],['Zone',14],['string',6],['float',5]];
+    const TYPE2 = [[' double',50],[' float',25],[' decimal',15],[' int',6],[' string',4]];
+    const NAMES = {
+        int:     [[' zoneId',55],[' id',20],[' zone',14],[' index',6],[' count',5]],
+        double:  [[' setpoint',50],[' value',25],[' temperature',14],[' target',6],[' newValue',5]],
+        float:   [[' setpoint',48],[' value',27],[' temperature',14],[' target',6],[' v',5]],
+        decimal: [[' setpoint',45],[' value',30],[' amount',13],[' target',7],[' newValue',5]],
+        Zone:    [[' zone',60],[' target',15],[' z',12],[' request',8],[' info',5]],
+        string:  [[' zoneName',45],[' name',30],[' json',12],[' input',8],[' key',5]]
+    };
+    const SEP1 = [[',',60],[')',30],[');',10]];
+    const SEP2 = [[')',72],[');',28]];
+    const END  = [[' {',70],[';',20],[' {}',10]];
+    const STAGE = { type1:'a parameter type', name1:'its name', sep1:'a comma or a closing bracket', type2:'the second parameter type', name2:'its name', sep2:'how to close the list', end:'what follows the signature' };
+
+    const outEl = $('#gOut'), bars = $('#gBars'), temp = $('#gTemp'), tempOut = $('#gTempOut');
+    let out, phase, t1, t2, belief, timer, builtFor, justPicked;
+
+    function reset() {
+        stopAuto(); out = []; phase = 'type1'; t1 = t2 = ''; belief = 1; builtFor = null; justPicked = false;
+        $('#gNote').innerHTML = '<strong>Try this:</strong> run it three times at temperature 0, then three times at 2. Same prompt, same model. Only the dice changed.';
+        render();
+    }
+    function cands() {
+        return ({ type1:TYPE1, name1:NAMES[t1], sep1:SEP1, type2:TYPE2, name2:NAMES[t2], sep2:SEP2, end:END })[phase];
+    }
+    function probs(c, T) {
+        if (T < 0.05) { const m = Math.max(...c.map(x => x[1])), k = c.findIndex(x => x[1] === m); return c.map((_, i) => i === k ? 1 : 0); }
+        // logits are ln(p); softmax(logit / T) is the real temperature rule.
+        const ls = c.map(x => Math.log(x[1]) / T), mx = Math.max(...ls), ex = ls.map(l => Math.exp(l - mx)), s = ex.reduce((a, b) => a + b, 0);
+        return ex.map(e => e / s);
+    }
+    function advance(tok) {
+        if (phase === 'type1')      { t1 = tok.trim(); phase = 'name1'; }
+        else if (phase === 'name1') { phase = 'sep1'; }
+        else if (phase === 'sep1')  { phase = tok === ',' ? 'type2' : tok === ')' ? 'end' : 'done'; }
+        else if (phase === 'type2') { t2 = tok.trim(); phase = 'name2'; }
+        else if (phase === 'name2') { phase = 'sep2'; }
+        else if (phase === 'sep2')  { phase = tok === ')' ? 'end' : 'done'; }
+        else if (phase === 'end')   { phase = 'done'; }
+    }
+    function pick(i) {
+        if (phase === 'done') return;
+        const c = cands(); out.push(c[i][0]); belief *= c[i][1] / 100; advance(c[i][0]); justPicked = true; render();
+    }
+    function sample() {
+        if (phase === 'done') return;
+        const p = probs(cands(), +temp.value); let r = Math.random(), k = 0;
+        for (; k < p.length - 1; k++) { r -= p[k]; if (r <= 0) break; }
+        pick(k);
+    }
+    function stopAuto() { clearInterval(timer); timer = null; const b = $('#gAuto'); if (b) b.setAttribute('aria-pressed', 'false'); }
+    function render() {
+        const T = +temp.value; tempOut.textContent = T.toFixed(1);
+        outEl.innerHTML = out.map((t, i) => '<span class="tok' + (justPicked && i === out.length - 1 ? ' new' : '') + '">' + esc(t) + '</span>').join('') + (phase === 'done' ? '<span class="eos">⟨end⟩</span>' : '');
+        $('#gCaret').style.display = phase === 'done' ? 'none' : '';
+        $('#gStep').textContent = out.length;
+        $('#gPath').textContent = out.length ? fmtPct(belief) : '—';
+        $('#gStepBtn').disabled = phase === 'done';
+        if (phase === 'done') {
+            stopAuto(); builtFor = null; $('#gStage').textContent = '';
+            bars.innerHTML = '<li class="done-msg">⟨end⟩ was sampled, so the loop stops.</li>';
+            $('#gNote').innerHTML = '<strong>Done.</strong> The model gave this exact line only <strong>' + fmtPct(belief) + '</strong> odds. In this toy model, no complete line gets more than about 5.5%. It all looks fluent, but nothing here was checked against your codebase. Hit Reset and run it again.';
+            return;
+        }
+        const c = cands(), p = probs(c, T);
+        $('#gStage').textContent = '· ' + STAGE[phase];
+        if (builtFor !== c) {
+            bars.innerHTML = c.map((x, i) =>
+                '<li><button type="button" class="cand" data-i="' + i + '" aria-label="Pick token ' + esc(x[0].trim()) + '">' +
+                '<span class="t">' + showTok(x[0]) + '</span><span class="track"><span class="fill"></span></span><span class="pct"></span></button></li>').join('');
+            $$('.cand', bars).forEach(b => b.addEventListener('click', () => pick(+b.dataset.i)));
+            builtFor = c; void bars.offsetWidth;
+        }
+        const top = p.indexOf(Math.max(...p));
+        $$('.cand', bars).forEach((b, i) => {
+            $('.fill', b).style.width = (p[i] * 100).toFixed(1) + '%';
+            $('.pct', b).textContent = Math.round(p[i] * 100) + '%';
+            b.classList.toggle('top', i === top);
+        });
+    }
+    $('#gStepBtn').addEventListener('click', sample);
+    $('#gReset').addEventListener('click', reset);
+    temp.addEventListener('input', () => { justPicked = false; render(); });
+    $('#gAuto').addEventListener('click', e => {
+        if (timer) { stopAuto(); return; }
+        if (phase === 'done') reset();
+        e.currentTarget.setAttribute('aria-pressed', 'true');
+        timer = setInterval(sample, 800); sample();
+    });
+    reset();
+})();
+
+/* ═══ 02 · pipeline journey ═══════════════════════════════ */
+(function () {
+    const h = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return (x - Math.floor(x)) * 2 - 1; };
+    const TOKS = ['public', ' void', ' Update', 'Zone', 'Set', 'point', '('];
+    const IDS  = [4812, 2103, 9921, 31877, 1467, 5530, 7];
+
+    const V = {
+        text: () => '<div class="stream" style="margin:0">public void UpdateZoneSetpoint(</div><p class="cap">Just characters: no meaning, no structure yet.</p>',
+        tok: () => '<div class="chips">' + TOKS.map((t, i) => '<span class="idcol"><span class="chip c' + (i % 6) + '">' + showTok(t) + '</span><span class="idrow"><span>' + IDS[i] + '</span></span></span>').join('') + '</div><p class="cap">Each token maps to an integer ID from a fixed vocabulary (IDs here are illustrative). The model only ever sees the numbers.</p>',
+        emb: () => {
+            let g = '<div class="heat">';
+            TOKS.forEach((t, i) => {
+                g += '<div class="heat-row"><span>' + showTok(t) + '</span><div class="heat-cells">';
+                for (let j = 0; j < 12; j++) { const v = h(i + 1, j + 1); g += '<i style="background:' + (v > 0 ? 'rgba(251,191,36,' : 'rgba(96,165,250,') + (Math.abs(v) * .9 + .08).toFixed(2) + ')"></i>'; }
+                g += '</div></div>';
+            });
+            g += '</div><p class="cap">Each ID becomes a long list of numbers (12 shown; real models use far more). Position is mixed in too, so word order survives.</p>' +
+              '<svg class="vis-svg" viewBox="0 0 300 140" role="img" aria-label="Sketch of a meaning space: temperature words cluster together, code words cluster together, and unrelated words sit far away" style="margin-top:.5rem">' +
+              '<ellipse cx="70" cy="52" rx="62" ry="38" fill="rgba(251,191,36,.08)" stroke="#fbbf24" stroke-dasharray="4 4"/>' +
+              '<ellipse cx="215" cy="98" rx="68" ry="34" fill="rgba(96,165,250,.08)" stroke="#60a5fa" stroke-dasharray="4 4"/>' +
+              '<ellipse cx="258" cy="26" rx="38" ry="20" fill="rgba(244,114,182,.08)" stroke="#f472b6" stroke-dasharray="4 4"/>' +
+              [['setpoint',46,36,'#fbbf24'],['temperature',92,26,'#fbbf24'],['chiller',88,64,'#fbbf24'],['zone',38,70,'#fbbf24'],
+               ['validator',190,92,'#60a5fa'],['controller',238,78,'#60a5fa'],['exception',214,118,'#60a5fa'],
+               ['banana',252,22,'#f472b6'],['coffee',270,38,'#f472b6']].map(p => '<circle cx="' + p[1] + '" cy="' + p[2] + '" r="4" fill="' + p[3] + '"/><text x="' + (p[1] + 7) + '" y="' + (p[2] + 4) + '" fill="#cbd5e1" font-size="10">' + p[0] + '</text>').join('') +
+              '</svg><p class="cap">A 2-D sketch of a space with far more dimensions: similar meanings land close together.</p>';
+            return g;
+        },
+        xf: () => {
+            const L = n => '<div><div class="layer-lbl">layer ' + n + '</div><div class="layer"><span class="at">Attention<br><small style="color:#cbd5e1">who to look at</small></span><span class="ff">Feed-forward<br><small style="color:#cbd5e1">process it</small></span></div></div>';
+            return '<div class="layers"><div class="out-vec">final vector for the last token ↑ used for the prediction</div>' + L('N') + '<div class="dots">⋮</div>' + L(2) + L(1) + '</div><p class="cap">The same block is stacked many times; each layer refines every token\'s vector using the others. See <a href="#attention">Attention</a>.</p>';
+        },
+        prob: () => {
+            const C = [['int',48],['double',27],['Zone',14],['string',6],['float',5]];
+            return '<div class="bars">' + C.map((c, i) => '<div class="mrow four' + (i === 0 ? ' top' : '') + '"><span class="t">' + c[0] + '</span><span class="sc">' + Math.log(c[1]).toFixed(2) + '</span><span class="track"><span class="fill" style="width:' + c[1] + '%"></span></span><span class="pct">' + c[1] + '%</span></div>').join('') + '</div>' +
+              '<p class="cap">Left to right: token · raw score (logit) · probability. Softmax turns the scores into odds that add up to 100%. The model returns a <em>distribution</em>, not an answer.</p>';
+        },
+        sample: () => {
+            const C = [['int',48,'#fbbf24'],['double',27,'#60a5fa'],['Zone',14,'#a78bfa'],['string',6,'#2dd4bf'],['float',5,'#f472b6']];
+            const html = '<div class="wheel" id="wheel">' + C.map(c => '<span style="width:' + c[1] + '%;background:' + c[2] + '">' + (c[1] > 9 ? c[0] : '') + '</span>').join('') + '</div><div class="wheel-ptr"><i id="wheelPtr"></i></div>' +
+              '<div class="btn-row" style="margin-top:.2rem"><button class="btn" type="button" id="roll">⚂ Roll the dice</button></div><p class="cap" id="rollCap"></p>' +
+              '<p class="cap">Low temperature narrows the odds toward the top pick; high temperature flattens them. Top-k and top-p additionally trim the unlikely tail.</p>';
+            return { html, bind(root) {
+                const ptr = $('#wheelPtr', root), cap = $('#rollCap', root);
+                function roll() {
+                    const r = Math.random() * 100; let acc = 0, hit = C[0];
+                    for (const c of C) { acc += c[1]; if (r <= acc) { hit = c; break; } }
+                    ptr.style.left = r + '%'; cap.innerHTML = 'The draw landed on <code>' + hit[0] + '</code>.';
+                }
+                $('#roll', root).addEventListener('click', roll); setTimeout(roll, 50);
+            } };
+        },
+        loop: () => '<div class="passes"><div><em>pass 1</em>public void UpdateZoneSetpoint( <b>→ int</b></div><div><em>pass 2</em>public void UpdateZoneSetpoint(int <b>→ ·zoneId</b></div><div><em>pass 3</em>public void UpdateZoneSetpoint(int zoneId <b>→ )</b></div></div>' +
+              '<p class="cap">Every pass re-reads the whole, slightly longer input. It runs until an end token or a length limit. Nothing is remembered between calls except what is in the window.</p>'
+    };
+
+    const S = [
+        { ic:'Aa', nm:'Your text',  title:'1 · Your prompt arrives',  v:'text',
+          body:'Instructions, files, chat history and your task are joined into one long string of text.',
+          m:'That string <b>is</b> the context window. The model sees nothing else.' },
+        { ic:'[·]', nm:'Tokenize',  title:'2 · Chop into tokens',     v:'tok',
+          body:'The text is split into tokens: words, sub-words and symbols. Each one is swapped for an integer ID.',
+          m:'Tokens are the unit of <b>input, output, cost and limits</b>.' },
+        { ic:'⋮', nm:'Embed',      title:'3 · Turn IDs into vectors', v:'emb',
+          body:'Each ID is looked up in a table and becomes a vector, a point in "meaning space". Position information is added so order matters.',
+          m:'From here on the model works on <b>geometry</b>, not letters.' },
+        { ic:'N×', nm:'Transformer', title:'4 · Stacked transformer layers', v:'xf',
+          body:'In every layer, attention lets each token gather information from the tokens before it, then a feed-forward step transforms the result.',
+          m:'This is where <b>context gets used</b>: "it" is linked to "chiller", and your spec is linked to your code.' },
+        { ic:'Σ', nm:'Scores',     title:'5 · Scores → probabilities', v:'prob',
+          body:'The last vector is turned into one score for every token in the vocabulary. Softmax converts the scores into probabilities.',
+          m:'The output is a <b>distribution</b>, not a single answer, which is why fluent does not mean correct.' },
+        { ic:'⚂', nm:'Sample',     title:'6 · Pick one token',        v:'sample',
+          body:'One token is drawn from the distribution. Temperature controls how adventurous the draw is.',
+          m:'Same prompt, different run, different output. Keep temperature <b>low for code</b> and refactors.' },
+        { ic:'↻', nm:'Repeat',     title:'7 · Append and go again',   v:'loop',
+          body:'The chosen token is appended to the input and the whole pipeline runs again for the next token.',
+          m:'Stateless between calls: <b>everything it needs must be in the window, every time</b>.' }
+    ];
+
+    const list = $('#stations');
+    list.innerHTML = S.map((s, i) => '<button type="button" class="station" role="tab" id="st-' + i + '" aria-controls="stPanel" aria-selected="false" tabindex="-1"><span class="n">' + (i + 1) + '</span><span class="ic" aria-hidden="true">' + s.ic + '</span><span class="nm">' + s.nm + '</span></button>').join('');
+    const panel = $('#stPanel'); let cur = 0, tour = null;
+
+    function show(i) {
+        cur = i; const s = S[i]; panel.setAttribute('aria-labelledby', 'st-' + i);
+        $('#stTitle').textContent = s.title; $('#stBody').textContent = s.body; $('#stMatters').innerHTML = '<b>Why it matters:</b> ' + s.m;
+        const out = V[s.v](), vis = $('#stVis');
+        if (typeof out === 'string') vis.innerHTML = out; else { vis.innerHTML = out.html; out.bind(vis); }
+        $$('.station', list).forEach((b, k) => b.classList.toggle('passed', k < i));
+        place();
+    }
+    function place() {
+        const rail = $('.rail'), rr = rail.getBoundingClientRect();
+        if (!rr.width) return;
+        const br = $$('.station', list)[cur].getBoundingClientRect(), x = br.left + br.width / 2 - rr.left;
+        $('#packet').style.left = x + 'px'; $('#railFill').style.width = x + 'px';
+    }
+    const T = tabs(list, i => show(i));
+    function stopTour() { clearInterval(tour); tour = null; $('#tourBtn').setAttribute('aria-pressed', 'false'); $('#tourBtn').textContent = '▶ Guided tour'; }
+    $('#tourBtn').addEventListener('click', () => {
+        if (tour) { stopTour(); return; }
+        $('#tourBtn').setAttribute('aria-pressed', 'true'); $('#tourBtn').textContent = '❚❚ Pause tour';
+        if (cur === S.length - 1) T.select(0);
+        tour = setInterval(() => { if (cur >= S.length - 1) { stopTour(); return; } T.select(cur + 1); }, 3600);
+    });
+    list.addEventListener('click', stopTour);
+    T.select(0);
+    window.addEventListener('resize', place);
+})();
+
+/* ═══ 03 · toy tokenizer ══════════════════════════════════ */
+(function () {
+    const MORPHS = ['chill','er','set','point','drift','ed','over','night','temp','erature','zone','valid','ator','control','ler','update','get','id','count','value','target','request','response','token','ize','ing','tion','agent','context','prompt','model','sensor','alarm','thresh','old','handle','manager','service','config','user','name','read','write','build','test','run','fail','pass','report'];
+    const WHOLE = new Set(['because','between','return','public','static','string','double','before','after','should','number','module']);
+    function splitWord(w) {
+        const lw = w.toLowerCase();
+        if (w.length <= 6 || WHOLE.has(lw)) return [w];
+        const parts = []; let i = 0, buf = '';
+        while (i < w.length) {
+            let best = '';
+            for (const m of MORPHS) if (m.length > best.length && lw.startsWith(m, i)) best = m;
+            if (best) { if (buf) { parts.push(buf); buf = ''; } parts.push(w.slice(i, i + best.length)); i += best.length; }
+            else { buf += w[i++]; if (buf.length === 4) { parts.push(buf); buf = ''; } }
+        }
+        if (buf) { if (buf.length <= 2 && parts.length) parts[parts.length - 1] += buf; else parts.push(buf); }
+        return parts;
+    }
+    function tokenize(s) {
+        const out = [], re = /( ?)([A-Za-z]+)|( ?)(\d+)|( ?)([^\sA-Za-z\d])|(\s+(?!\S))|(\s)/gu;
+        for (const m of s.matchAll(re)) {
+            if (m[2]) {
+                const parts = m[2].match(/[A-Z]+(?![a-z])|[A-Z]?[a-z]+/g).flatMap(splitWord);
+                parts.forEach((p, k) => out.push(k === 0 ? m[1] + p : p));
+            } else if (m[4]) {
+                const g = m[4].match(/\d{1,3}/g); g.forEach((p, k) => out.push(k === 0 ? m[3] + p : p));
+            } else if (m[6]) out.push(m[5] + m[6]);
+            else out.push(m[7] || m[8]);
+        }
+        return out;
+    }
+    const PRESETS = [
+        'The chiller setpoint drifted by 2°C overnight.',
+        'def get_zone_temp(self, zone_id):\n    return self.sensors[zone_id].read()',
+        'public void UpdateZoneSetpoint(int zoneId, double newSetpoint)',
+        'Sensor 4417 reported 23.75 °C at 03:42:19'
+    ];
+    const inp = $('#tkIn');
+    function render() {
+        const s = inp.value, t = tokenize(s), n = t.length, ratio = n ? s.length / n : 0;
+        $('#tkChips').innerHTML = n ? t.map((x, i) => '<span class="chip c' + (i % 6) + '">' + showTok(x) + '</span>').join('') : '<small>Type something above…</small>';
+        $('#tkChars').textContent = s.length; $('#tkCount').textContent = n; $('#tkRatio').textContent = ratio.toFixed(1);
+        $('#tkMeter').style.width = Math.min(100, ratio / 6 * 100) + '%';
+    }
+    inp.addEventListener('input', render);
+    $$('[data-p]').forEach(b => b.addEventListener('click', () => { inp.value = PRESETS[+b.dataset.p]; render(); }));
+    render();
+})();
+
+/* ═══ 04 · attention ══════════════════════════════════════ */
+(function () {
+    const W = ['The','chiller','drifted','because','it','lost','power','.'];
+    const A = [[1],[.25,.75],[.10,.55,.35],[.05,.25,.45,.25],[.05,.60,.15,.10,.10],[.03,.25,.20,.12,.30,.10],[.02,.18,.08,.05,.12,.48,.07],[.02,.20,.14,.08,.06,.18,.27,.05]];
+    const box = $('#attnTokens'), svg = $('#attnSvg'), stage = $('#attnStage'); let sel = 4;
+    box.innerHTML = W.map((w, i) => '<button type="button" class="at-btn" data-i="' + i + '" aria-pressed="false"><span class="w">' + esc(w) + '</span><span class="p"></span></button>').join('');
+    const btns = $$('.at-btn', box);
+    function describe() {
+        const row = A[sel], word = '“' + W[sel] + '”';
+        if (sel === 0) return word + ' is the first token. There is nothing to its left, so it can only look at itself.';
+        const rank = row.map((w, j) => [w, j]).filter(x => x[1] !== sel).sort((a, b) => b[0] - a[0]);
+        let s = word + ' looks hardest at “' + W[rank[0][1]] + '” (' + Math.round(rank[0][0] * 100) + '%)';
+        if (rank[1]) s += ', then “' + W[rank[1][1]] + '” (' + Math.round(rank[1][0] * 100) + '%)';
+        s += '.';
+        if (sel === 4) s += ' That is how the model works out that “it” means the chiller.';
+        if (sel === 5) s += ' Words after it are invisible: they have not been generated yet.';
+        return s;
+    }
+    function render() {
+        const row = A[sel], sr = stage.getBoundingClientRect();
+        btns.forEach((b, i) => {
+            const w = i <= sel ? row[i] : 0;
+            b.style.setProperty('--w', w.toFixed(2)); b.setAttribute('aria-pressed', i === sel);
+            b.classList.toggle('future', i > sel);
+            $('.p', b).textContent = i <= sel ? Math.round(w * 100) + '%' : '';
+        });
+        const y0 = 140, xs = btns.map(b => { const r = b.getBoundingClientRect(); return r.left - sr.left + r.width / 2; });
+        let d = '';
+        for (let j = 0; j < sel; j++) {
+            const w = row[j], dist = sel - j, c = 36 + dist * 24;
+            d += '<path d="M' + xs[sel].toFixed(1) + ' ' + y0 + ' Q' + ((xs[sel] + xs[j]) / 2).toFixed(1) + ' ' + (y0 - c) + ' ' + xs[j].toFixed(1) + ' ' + y0 + '" stroke-width="' + (1 + w * 12).toFixed(1) + '" opacity="' + (.2 + w * .85).toFixed(2) + '"/>' +
+                 '<circle cx="' + xs[j].toFixed(1) + '" cy="' + y0 + '" r="' + (2 + w * 6).toFixed(1) + '"/>';
+        }
+        svg.setAttribute('viewBox', '0 0 ' + sr.width.toFixed(0) + ' 140'); svg.innerHTML = d;
+        $('#attnRead').textContent = describe();
+    }
+    btns.forEach((b, i) => b.addEventListener('click', () => { sel = i; render(); }));
+    if (window.ResizeObserver) new ResizeObserver(render).observe(stage);
+    window.addEventListener('load', render); render();
+})();
+
+/* ═══ 05 · training ═══════════════════════════════════════ */
+(function () {
+    const C = [['today',30],['again',25],['upward',19],['slowly',16],['overnight',10]], TRUE = 4, LR = 1.2;
+    let logits, steps; const rows = $('#trRows');
+    const softmax = l => { const m = Math.max(...l), e = l.map(x => Math.exp(x - m)), s = e.reduce((a, b) => a + b, 0); return e.map(x => x / s); };
+    rows.innerHTML = C.map((c, i) => '<li class="mrow' + (i === TRUE ? ' truth' : '') + '"><span class="t">' + c[0] + (i === TRUE ? ' ★' : '') + '</span><span class="track"><span class="fill"></span></span><span class="pct"></span></li>').join('');
+    function render() {
+        const p = softmax(logits);
+        $$('.mrow', rows).forEach((r, i) => { $('.fill', r).style.width = (p[i] * 100).toFixed(1) + '%'; $('.pct', r).textContent = Math.round(p[i] * 100) + '%'; });
+        $('#trLoss').textContent = (-Math.log(p[TRUE])).toFixed(2); $('#trSteps').textContent = steps;
+    }
+    function nudge(n) { for (let k = 0; k < n; k++) { const p = softmax(logits); logits = logits.map((l, i) => l + LR * ((i === TRUE ? 1 : 0) - p[i])); steps++; } render(); }
+    function reset() { logits = C.map(c => Math.log(c[1])); steps = 0; render(); }
+    $('#trN1').addEventListener('click', () => nudge(1));
+    $('#trN10').addEventListener('click', () => nudge(10));
+    $('#trReset').addEventListener('click', reset);
+    reset();
+
+    const ST = [
+        { nm:'Pre-training', k:'stage 1', d:'Predict the next token across huge amounts of text and code. The result is a fluent continuer: it knows patterns, but not that you want an answer.',
+          bar:'base model', o:'<span class="q">Write a unit test for ZoneValidator.</span>\nWrite a unit test for AlarmValidator.\nWrite a unit test for SetpointMapper.\nWrite a unit test for…' },
+        { nm:'Instruction tuning', k:'stage 2', d:'Train on (instruction → good answer) examples so it answers the task instead of continuing the page.',
+          bar:'instruction-tuned', o:'<span class="q">Write a unit test for ZoneValidator.</span>\n[Fact]\npublic void Rejects_setpoint_above_32()\n{\n    var r = new ZoneValidator().Validate(new Zone { Setpoint = 40 });\n    Assert.False(r.IsValid);\n}' },
+        { nm:'Preference alignment', k:'stage 3', d:'Answers are compared and rated; the model learns to prefer the ones people judge helpful and safe, and to flag uncertainty.',
+          bar:'aligned assistant', o:'<span class="q">Write a unit test for ZoneValidator.</span>\n[Fact]\npublic void Rejects_setpoint_above_32() { … }\n\n// Assumption: valid range is 10–32 °C. Please confirm.\n// I have not run this against your project.' },
+        { nm:'Inference: your turn', k:'stage 4', d:'The weights are now frozen. Your prompt and context are the only steering you have, so use them.',
+          bar:'aligned + your context', o:'<span class="q">Write a unit test for ZoneValidator.  [+ spec: range 10–32 °C · no new packages · follow AlarmThresholdValidatorTests.cs]</span>\n// Follows AlarmThresholdValidatorTests.cs; range from the spec\n[Theory] [InlineData(9)] [InlineData(33)]\npublic void Rejects_out_of_range(double sp) =>\n    _validator.TestValidate(new Zone { Setpoint = sp })\n              .ShouldHaveValidationErrorFor(z => z.Setpoint);' }
+    ];
+    const tl = $('#stageTabs');
+    tl.innerHTML = ST.map((s, i) => '<button type="button" class="step-tab" role="tab" id="stg-' + i + '" aria-controls="stagePanel" aria-selected="false" tabindex="-1"><span>' + s.k + '</span>' + s.nm + '</button>').join('');
+    tabs(tl, i => {
+        const s = ST[i]; $('#stagePanel').setAttribute('aria-labelledby', 'stg-' + i);
+        $('#stageDesc').textContent = s.d; $('#stageBar').textContent = s.bar; $('#stageOut').innerHTML = s.o;
+    }).select(0);
+})();
+
+/* ═══ 06 · context window ═════════════════════════════════ */
+(function () {
+    const CAP = 1000, SYS = 120, PIN = 30, TASK = 80, ANS = 200, FILE = 180, TURN = 140, MAXN = 10;
+    let turns, files, pinned;
+    const bar = $('#ctxBar'), pin = $('#cxPin');
+    function reset() { turns = [1]; files = [1]; pinned = false; pin.checked = false; render(); }
+    function render() {
+        let avail = CAP - SYS - (pinned ? PIN : 0) - TASK - ANS;
+        const fk = [], fcut = [];
+        files.forEach(id => { if (avail >= FILE) { fk.push({ id, n: FILE }); avail -= FILE; } else if (avail > 0) { fk.push({ id, n: avail, cut: true }); fcut.push(id); avail = 0; } else fcut.push(id); });
+        const tk = []; let stop = false;
+        for (let i = turns.length - 1; i >= 0; i--) { if (!stop && avail >= TURN) { tk.unshift(turns[i]); avail -= TURN; } else stop = true; }
+        const td = turns.filter(t => tk.indexOf(t) < 0);
+        const segs = [{ c:'sys', l:'System', k:'Sys', n:SYS }];
+        if (pinned) segs.push({ c:'pin', l:'Rule', k:'R', n:PIN });
+        fk.forEach(f => segs.push({ c:'file', l:'File ' + f.id + (f.cut ? ' ✂' : ''), k:'F' + f.id + (f.cut ? '✂' : ''), n:f.n }));
+        tk.forEach(t => segs.push({ c:'hist', l:'Turn ' + t, k:'T' + t, n:TURN }));
+        segs.push({ c:'task', l:'Task', k:'Tk', n:TASK });
+        const used = segs.reduce((a, s) => a + s.n, 0), free = Math.max(0, CAP - used - ANS);
+        segs.push({ c:'free', l:'', k:'', n:free }, { c:'ans', l:'Answer', k:'Ans', n:ANS });
+        bar.innerHTML = segs.map(s => '<div class="seg ' + s.c + '" style="width:' + (s.n / CAP * 100).toFixed(2) + '%" title="' + (s.l || 'Free') + ': ' + s.n + ' tokens" data-short="' + esc(s.k) + '">' + esc(s.l) + '</div>').join('');
+        // Fit labels to their segment: full text, else the short form, else nothing (the legend still names every colour).
+        $$('.seg', bar).forEach(g => { if (g.scrollWidth > g.clientWidth) g.textContent = g.dataset.short; if (g.scrollWidth > g.clientWidth) g.textContent = ''; });
+        bar.setAttribute('aria-label', 'Context window: ' + (used + ANS) + ' of ' + CAP + ' tokens used including ' + ANS + ' reserved for the answer');
+        $('#ctxUsed').textContent = (used + ANS) + ' / ' + CAP + ' used';
+        const seen = pinned || tk.indexOf(1) >= 0, v = $('#cxVerdict');
+        v.className = 'verdict ' + (seen ? 'ok' : 'bad');
+        v.innerHTML = seen
+            ? '<b>✓ The model can see the rule</b>“Setpoint range is 10–32 °C”' + (pinned ? ' is pinned in custom instructions, so it is always on.' : ' is still in the chat history.')
+            : '<b>✗ The rule fell out of the window</b>The model no longer knows the 10–32 °C limit and may happily suggest 40 °C. Pin it in custom instructions to keep it always on.';
+        const d = $('#cxDrop'), n = td.length + fcut.length;
+        d.className = 'verdict' + (n ? ' bad' : '');
+        d.innerHTML = n ? '<b>✗ Dropped or cut: ' + n + ' item' + (n > 1 ? 's' : '') + '</b><div class="dropped">' + td.map(t => '<span>Turn ' + t + '</span>').join('') + fcut.map(f => '<span>File ' + f + '</span>').join('') + '</div>'
+                        : '<b>✓ Everything fits</b>Nothing has been dropped yet. Keep adding to see what goes first.';
+        $('#cxTurn').disabled = turns.length >= MAXN; $('#cxFile').disabled = files.length >= MAXN;
+    }
+    $('#cxTurn').addEventListener('click', () => { turns.push(turns.length + 1); render(); });
+    $('#cxFile').addEventListener('click', () => { files.push(files.length + 1); render(); });
+    pin.addEventListener('change', () => { pinned = pin.checked; render(); });
+    $('#cxReset').addEventListener('click', reset);
+    reset();
+})();
+
+/* ═══ 07 · agent loop ═════════════════════════════════════ */
+(function () {
+    const TR = [
+        { n:'plan',    l:'Plan',                   t:'Goal: make ZoneValidatorTests pass. First, run the tests to see what fails.' },
+        { n:'act',     l:'Act · Terminal & build', t:'$ dotnet test', tool:'Terminal & build' },
+        { n:'observe', l:'Observe',                t:'1 failed: Rejects_setpoint_above_32. Expected invalid, got valid.' },
+        { n:'adjust',  l:'Adjust',                 t:'The validator has no upper bound. Open ZoneValidator.cs and add one.' },
+        { n:'adjust',  l:'Human checkpoint',       t:'Proposed edit to ZoneValidator.cs: RuleFor(x => x.Setpoint).InclusiveBetween(10, 32). Approve?', tool:'Human checkpoint', cls:'human', gate:true },
+        { n:'act',     l:'Act · Repo & files',     t:'Edited ZoneValidator.cs (approved).', tool:'Repo & files' },
+        { n:'act',     l:'Act · Tests',            t:'$ dotnet test', tool:'Tests' },
+        { n:'observe', l:'Observe',                t:'All tests pass.' },
+        { n:'goal',    l:'Done',                   t:'Goal met. Returning the diff and test results for human review.', cls:'done' }
+    ];
+    let i, log = $('#agLog'), btn = $('#agNext');
+    function clearActive() { $$('.ag-node').forEach(g => g.classList.remove('active')); $$('.tool').forEach(t => t.classList.remove('active')); }
+    function reset() {
+        i = 0; clearActive(); $('#agGoal').classList.remove('done');
+        log.innerHTML = '<li class="empty">Press Start to run a scripted agent on the goal “fix the failing test”.</li>';
+        btn.textContent = 'Start ▶'; btn.disabled = false; btn.classList.remove('pulse');
+    }
+    function step() {
+        if (i >= TR.length) return;
+        const s = TR[i]; if (i === 0) log.innerHTML = '';
+        clearActive();
+        const node = $('#agn-' + s.n); if (node) node.classList.add('active');
+        if (s.n === 'goal') $('#agGoal').classList.add('done');
+        if (s.tool) $$('.tool').forEach(t => { if (t.dataset.tool === s.tool) t.classList.add('active'); });
+        const li = document.createElement('li'); if (s.cls) li.className = s.cls;
+        li.innerHTML = '<b>' + esc(s.l) + '</b>' + esc(s.t); log.appendChild(li); log.scrollTop = log.scrollHeight;
+        i++;
+        btn.classList.remove('pulse');
+        if (i >= TR.length) { btn.textContent = 'Finished ✓'; btn.disabled = true; }
+        else btn.textContent = 'Next step ▶';
+        if (s.gate) { btn.textContent = 'Approve edit ✓'; btn.classList.add('pulse'); }
+    }
+    btn.addEventListener('click', step);
+    $('#agReset').addEventListener('click', reset);
+    reset();
+})();
+
+/* ═══ nav scroll-spy ══════════════════════════════════════ */
+(function () {
+    const links = $$('.topnav a'), map = {};
+    links.forEach(a => { map[a.getAttribute('href').slice(1)] = a; });
+    if (!('IntersectionObserver' in window)) return;
+    const io = new IntersectionObserver(es => {
+        es.forEach(e => { if (e.isIntersecting) { links.forEach(a => a.removeAttribute('aria-current')); const a = map[e.target.id]; if (a) { a.setAttribute('aria-current', 'true'); const ul = a.parentNode.parentNode; if (ul.scrollWidth > ul.clientWidth) ul.scrollLeft = a.offsetLeft - ul.clientWidth / 2 + a.offsetWidth / 2; } } });
+    }, { rootMargin: '-35% 0px -60% 0px' });
+    $$('main section[id]').forEach(s => io.observe(s));
+})();
+
+})();
+</script>
+</body>
+</html>
