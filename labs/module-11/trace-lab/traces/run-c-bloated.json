@@ -1,0 +1,222 @@
+{
+ "resourceSpans": [
+  {
+   "scopeSpans": [
+    {
+     "spans": [
+      {
+       "traceId": "00000000000000000000000000000003",
+       "spanId": "0000000000000001",
+       "parentSpanId": "",
+       "name": "invoke_agent",
+       "startTimeUnixNano": "1800000000000000000",
+       "endTimeUnixNano": "1800000006785000000",
+       "attributes": [
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "invoke_agent"
+         }
+        },
+        {
+         "key": "lab.user_question",
+         "value": {
+          "stringValue": "Draft release notes for v1.3."
+         }
+        }
+       ],
+       "status": {
+        "code": 1
+       }
+      },
+      {
+       "traceId": "00000000000000000000000000000003",
+       "spanId": "0000000000000002",
+       "parentSpanId": "0000000000000001",
+       "name": "chat sample-model",
+       "startTimeUnixNano": "1800000000000000000",
+       "endTimeUnixNano": "1800000000800000000",
+       "attributes": [
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "chat"
+         }
+        },
+        {
+         "key": "gen_ai.request.model",
+         "value": {
+          "stringValue": "sample-model"
+         }
+        },
+        {
+         "key": "gen_ai.usage.input_tokens",
+         "value": {
+          "intValue": "700"
+         }
+        },
+        {
+         "key": "gen_ai.usage.output_tokens",
+         "value": {
+          "intValue": "50"
+         }
+        }
+       ],
+       "status": {
+        "code": 1
+       }
+      },
+      {
+       "traceId": "00000000000000000000000000000003",
+       "spanId": "0000000000000003",
+       "parentSpanId": "0000000000000001",
+       "name": "execute_tool list_commits",
+       "startTimeUnixNano": "1800000000805000000",
+       "endTimeUnixNano": "1800000001705000000",
+       "attributes": [
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "execute_tool"
+         }
+        },
+        {
+         "key": "gen_ai.tool.name",
+         "value": {
+          "stringValue": "list_commits"
+         }
+        },
+        {
+         "key": "gen_ai.tool.call.arguments",
+         "value": {
+          "stringValue": "{\"range\": \"v1.2..v1.3\"}"
+         }
+        },
+        {
+         "key": "gen_ai.tool.call.result",
+         "value": {
+          "stringValue": "<14000 tokens of raw commits>"
+         }
+        }
+       ],
+       "status": {
+        "code": 1
+       }
+      },
+      {
+       "traceId": "00000000000000000000000000000003",
+       "spanId": "0000000000000004",
+       "parentSpanId": "0000000000000001",
+       "name": "chat sample-model",
+       "startTimeUnixNano": "1800000001710000000",
+       "endTimeUnixNano": "1800000004310000000",
+       "attributes": [
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "chat"
+         }
+        },
+        {
+         "key": "gen_ai.request.model",
+         "value": {
+          "stringValue": "sample-model"
+         }
+        },
+        {
+         "key": "gen_ai.usage.input_tokens",
+         "value": {
+          "intValue": "14750"
+         }
+        },
+        {
+         "key": "gen_ai.usage.output_tokens",
+         "value": {
+          "intValue": "400"
+         }
+        }
+       ],
+       "status": {
+        "code": 1
+       }
+      },
+      {
+       "traceId": "00000000000000000000000000000003",
+       "spanId": "0000000000000005",
+       "parentSpanId": "0000000000000001",
+       "name": "execute_tool get_build_status",
+       "startTimeUnixNano": "1800000004315000000",
+       "endTimeUnixNano": "1800000004375000000",
+       "attributes": [
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "execute_tool"
+         }
+        },
+        {
+         "key": "gen_ai.tool.name",
+         "value": {
+          "stringValue": "get_build_status"
+         }
+        },
+        {
+         "key": "gen_ai.tool.call.arguments",
+         "value": {
+          "stringValue": "{\"build_id\": \"b-1234\"}"
+         }
+        },
+        {
+         "key": "gen_ai.tool.call.result",
+         "value": {
+          "stringValue": "{\"status\": \"failed\"}"
+         }
+        }
+       ],
+       "status": {
+        "code": 1
+       }
+      },
+      {
+       "traceId": "00000000000000000000000000000003",
+       "spanId": "0000000000000006",
+       "parentSpanId": "0000000000000001",
+       "name": "chat sample-model",
+       "startTimeUnixNano": "1800000004380000000",
+       "endTimeUnixNano": "1800000006780000000",
+       "attributes": [
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "chat"
+         }
+        },
+        {
+         "key": "gen_ai.request.model",
+         "value": {
+          "stringValue": "sample-model"
+         }
+        },
+        {
+         "key": "gen_ai.usage.input_tokens",
+         "value": {
+          "intValue": "15350"
+         }
+        },
+        {
+         "key": "gen_ai.usage.output_tokens",
+         "value": {
+          "intValue": "300"
+         }
+        }
+       ],
+       "status": {
+        "code": 1
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

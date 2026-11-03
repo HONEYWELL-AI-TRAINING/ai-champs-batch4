@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<!--
+  ===========================================================================
+  Module concept page — lab-visualizer skill.
+
+  COPY this file to labs/module-NN/index.html, then replace the [BRACKETED]
+  placeholders and the `quizData` array with module-specific content.
+
+  Keep the <style> and <script> blocks byte-identical between modules. They
+  carry fixes that are easy to silently reintroduce when a page is written
+  from memory instead of copied:
+
+    * the score readout stays hidden until submit (a live score lets a learner
+      click each option and read the answer off the counter)
+    * .card-body uses grid-template-rows, not max-height, so a tall concept
+      card cannot clip its own content
+    * flow-step animation delays use :nth-of-type, because :nth-child counts
+      the arrow <span>s and lands the delays on the wrong elements
+    * prefers-reduced-motion restores opacity — with animations disabled, a
+      fadeInUp element that starts at opacity:0 never becomes visible
+    * concept headers and quiz options are real focusable controls, so the
+      page is keyboard navigable
+
+  Delete any section the module does not need (comparison, stats, tabs).
+  ===========================================================================
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <title>Module 05: SDD to Complete Software SDLC</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --primary-hover: #2980b9;
+            --secondary: #2ecc71;
+            --accent: #e74c3c;
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface-hover: #334155;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --correct: #22c55e;
+            --incorrect: #ef4444;
+            --neutral: #64748b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+        }
+
+        /* Visible focus ring on every interactive element. */
+        :focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+        }
+
+        /* ── Hero ─────────────────────────────────── */
+        .hero {
+            background: linear-gradient(135deg, var(--surface) 0%, var(--bg) 100%);
+            padding: 4rem 2rem 3rem;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+        .hero h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .hero .subtitle { color: var(--text-muted); font-size: 1.1rem; }
+        .hero .badge {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-top: 1rem;
+        }
+
+        /* ── Layout ───────────────────────────────── */
+        .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+        /* ── Section Headers ──────────────────────── */
+        .section-header {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 3rem 0 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        /* ── Concept Cards ────────────────────────── */
+        .concept-card {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 1.75rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+            transition: border-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .concept-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(52, 152, 219, 0.15);
+        }
+        /* Accordion pattern: the heading wraps the button, so the card is
+           reachable by Tab and toggles on Enter/Space while still appearing
+           in the document outline. A <div onclick> is invisible to keyboard
+           users; a <button> wrapping the <h3> is invalid HTML. */
+        .concept-card .card-heading { margin: 0; font-size: inherit; font-weight: inherit; }
+        .concept-card .card-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            width: 100%;
+            background: none;
+            border: none;
+            color: inherit;
+            font: inherit;
+            text-align: left;
+            cursor: pointer;
+            user-select: none;
+        }
+        .concept-card .card-title-text { flex: 1; font-size: 1.2rem; font-weight: 600; }
+        .concept-card .toggle-icon {
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+            color: var(--primary);
+        }
+        .concept-card.open .toggle-icon { transform: rotate(90deg); }
+
+        /* grid-template-rows animates to the content's natural height, so a
+           card taller than an arbitrary max-height is never clipped. */
+        .concept-card .card-body {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.4s ease;
+        }
+        .concept-card.open .card-body { grid-template-rows: 1fr; }
+        .concept-card .card-body-inner { overflow: hidden; }
+        .concept-card.open .card-body-inner { padding-top: 1.25rem; }
+        .concept-card .definition {
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+
+        /* ── Diagram Boxes ────────────────────────── */
+        .diagram-container {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            display: flex;
+            justify-content: center;
+        }
+        .diagram-container svg { max-width: 100%; height: auto; }
+
+        /* ── Animated Flow ────────────────────────── */
+        .flow {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 1rem 0;
+        }
+        .flow-step {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0.75rem 1.25rem;
+            text-align: center;
+            min-width: 120px;
+            opacity: 0;
+            transform: translateY(10px);
+            animation: fadeInUp 0.4s forwards;
+        }
+        /* :nth-of-type counts <div>s only. :nth-child would count the arrow
+           <span>s too and apply the delays to the wrong elements. */
+        .flow-step:nth-of-type(2) { animation-delay: 0.1s; }
+        .flow-step:nth-of-type(3) { animation-delay: 0.2s; }
+        .flow-step:nth-of-type(4) { animation-delay: 0.3s; }
+        .flow-step:nth-of-type(5) { animation-delay: 0.4s; }
+        .flow-step .step-label { font-size: 0.8rem; color: var(--text-muted); }
+        .flow-step .step-name { font-weight: 600; }
+        .flow-arrow { color: var(--primary); font-size: 1.5rem; animation: pulse 1.5s infinite; }
+
+        @keyframes fadeInUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ── Comparison Table ─────────────────────── */
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .comparison .col {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.25rem;
+            border: 1px solid var(--border);
+        }
+        .comparison .col h4 { margin-bottom: 0.75rem; }
+        .comparison .col.pro { border-top: 3px solid var(--correct); }
+        .comparison .col.con { border-top: 3px solid var(--incorrect); }
+        .comparison ul { list-style: none; padding: 0; }
+        .comparison li { padding: 0.35rem 0; padding-left: 1.25rem; position: relative; }
+        .comparison li::before { content: '•'; position: absolute; left: 0; color: var(--primary); }
+
+        /* ── Interactive Code Block ────────────────── */
+        .code-block {
+            background: var(--surface);
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 1rem 0;
+            border: 1px solid var(--border);
+        }
+        .code-block .code-header {
+            background: var(--bg);
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+        .code-block pre {
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        /* ── Stats Row ────────────────────────────── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .stat-card {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        .stat-card .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .stat-card .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+        .stat-card .stat-source {
+            font-size: 0.7rem;
+            color: var(--neutral);
+            margin-top: 0.5rem;
+        }
+
+        /* ── Tabs ─────────────────────────────────── */
+        .tabs { display: flex; gap: 0.5rem; margin: 1rem 0; flex-wrap: wrap; }
+        .tab-btn {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font: inherit;
+            font-size: 0.95rem;
+            transition: background 0.2s, color 0.2s, border-color 0.2s;
+        }
+        .tab-btn[aria-selected="true"] {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .tab-content[hidden] { display: none; }
+
+        /* ── Quiz Section ─────────────────────────── */
+        .quiz-section {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 2px solid var(--accent);
+        }
+        .quiz-header {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+        }
+        .quiz-progress {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .quiz-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--border);
+            transition: background 0.3s;
+        }
+        .quiz-dot.answered { background: var(--primary); }
+        .quiz-dot.correct { background: var(--correct); }
+        .quiz-dot.incorrect { background: var(--incorrect); }
+        .quiz-stats {
+            display: flex;
+            gap: 1rem;
+            margin-top: 0.75rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+        }
+        .question-card {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--neutral);
+            transition: border-color 0.3s;
+        }
+        .question-card.correct { border-left-color: var(--correct); }
+        .question-card.incorrect { border-left-color: var(--incorrect); }
+        .question-number { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; padding: 0; }
+        .question-text { font-weight: 500; margin-bottom: 1rem; }
+        .options { display: flex; flex-direction: column; gap: 0.5rem; }
+
+        /* Real radio inputs: arrow keys move within a question, Tab moves
+           between questions, and screen readers announce "2 of 4". */
+        .option {
+            display: block;
+            position: relative;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+            color: var(--text);
+            cursor: pointer;
+            text-align: left;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .option input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+        .option:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
+        .option:hover:not(.locked) { border-color: var(--primary); background: rgba(52,152,219,0.1); }
+        .option.locked { cursor: not-allowed; }
+        .option.selected { border-color: var(--primary); background: rgba(52,152,219,0.15); }
+        .option.correct { border-color: var(--correct); background: rgba(34,197,94,0.15); }
+        .option.incorrect { border-color: var(--incorrect); background: rgba(239,68,68,0.15); }
+        /* Result marked with a glyph as well as colour (WCAG 1.4.1). */
+        .option .marker { font-weight: 700; }
+        .option.correct .marker::before { content: '\2713\00a0'; color: var(--correct); }
+        .option.incorrect .marker::before { content: '\2717\00a0'; color: var(--incorrect); }
+
+        .feedback {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        .feedback[hidden] { display: none; }
+        .feedback.correct { background: rgba(34,197,94,0.1); color: var(--correct); }
+        .feedback.incorrect { background: rgba(239,68,68,0.1); color: var(--incorrect); }
+
+        .quiz-notice {
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            background: rgba(231,76,60,0.12);
+            color: #f5a097;
+            font-size: 0.9rem;
+        }
+        .quiz-notice[hidden] { display: none; }
+
+        .quiz-actions { display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap; }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-weight: 500;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--surface-hover); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* ── Responsive ────────────────────────────── */
+        @media (max-width: 640px) {
+            .hero { padding: 2.5rem 1rem 2rem; }
+            .hero h1 { font-size: 1.75rem; }
+            .container { padding: 1rem; }
+            .comparison { grid-template-columns: 1fr; }
+            .flow { justify-content: center; }
+            .quiz-actions .btn { flex: 1 1 100%; }
+        }
+
+        /* ── Reduced motion ────────────────────────── */
+        /* Without the explicit opacity/transform reset, .flow-step keeps the
+           opacity:0 it starts at and the content is invisible. */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+            .flow-step { opacity: 1; transform: none; }
+        }
+    </style>
+</head>
+<body>
+    <!-- ════════════════════════════════════════════ -->
+    <!-- HERO                                        -->
+    <!-- ════════════════════════════════════════════ -->
+    <section class="hero">
+        <h1>Module 05: SDD to Complete Software SDLC</h1>
+        <p class="subtitle">Taking Module 04's specification through a full greenfield SDLC, then applying the same SDD discipline to safely evolve an existing brownfield application — architecture through release, twice over.</p>
+        <span class="badge">Interactive Concept Guide</span>
+    </section>
+
+    <div class="container">
+        <!-- ══════════════════════════════════════════ -->
+        <!-- CONCEPT CARDS                             -->
+        <!-- ══════════════════════════════════════════ -->
+        <h2 class="section-header">Key Concepts</h2>
+
+        <div class="concept-card open">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="true" aria-controls="concept-1-body">
+                    <span class="card-title-text">1 · Two Tracks, One Discipline</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-1-body">
+                <div class="card-body-inner">
+                    <p class="definition">Greenfield and brownfield look like different jobs, but this module runs both on the <strong>same Spec-Driven foundation from Module 04</strong>. The real difference is what has to be true before you can safely start implementing.</p>
+
+                    <div class="diagram-container">
+                        <svg viewBox="0 0 560 220" width="560" height="220"
+                             role="img" aria-label="Two tracks converge on one outcome. The greenfield track: Specify and Plan, then Implement and Test, then Release. The brownfield track: Analyze and Plan Impact, then Implement Minimally, then Verify and Release. Both tracks lead to a validated, traceable feature.">
+                            <g font-family="sans-serif" font-size="11" fill="#e2e8f0" text-anchor="middle">
+                                <text x="60" y="46" fill="#94a3b8" font-weight="700">GREENFIELD</text>
+                                <rect x="120" y="26" width="120" height="40" rx="8" fill="#1e3a8a" stroke="#3b82f6"/>
+                                <text x="180" y="50">Specify &amp; Plan</text>
+                                <rect x="264" y="26" width="120" height="40" rx="8" fill="#1e3a8a" stroke="#3b82f6"/>
+                                <text x="324" y="50">Implement &amp; Test</text>
+                                <rect x="408" y="26" width="120" height="40" rx="8" fill="#1e3a8a" stroke="#3b82f6"/>
+                                <text x="468" y="50">Release</text>
+                                <text x="60" y="126" fill="#94a3b8" font-weight="700">BROWNFIELD</text>
+                                <rect x="120" y="106" width="120" height="40" rx="8" fill="#7c2d12" stroke="#ea580c"/>
+                                <text x="180" y="130">Analyze &amp; Plan Impact</text>
+                                <rect x="264" y="106" width="120" height="40" rx="8" fill="#7c2d12" stroke="#ea580c"/>
+                                <text x="324" y="130">Implement Minimally</text>
+                                <rect x="408" y="106" width="120" height="40" rx="8" fill="#7c2d12" stroke="#ea580c"/>
+                                <text x="468" y="130">Verify &amp; Release</text>
+                                <rect x="180" y="176" width="200" height="36" rx="8" fill="#1e293b" stroke="#334155"/>
+                                <text x="280" y="198" font-weight="700">Validated, Traceable Feature</text>
+                            </g>
+                            <g stroke="#475569" stroke-width="2" fill="none">
+                                <path d="M240 46 H264"/><path d="M384 46 H408"/>
+                                <path d="M240 126 H264"/><path d="M384 126 H408"/>
+                                <path d="M468 66 V176 H380"/>
+                                <path d="M180 146 V176 H180"/>
+                            </g>
+                        </svg>
+                    </div>
+
+                    <p class="definition">Both tracks answer the same question — <em>what must I know before changing code?</em> — they just start from different amounts of existing constraint.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="concept-card">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-2-body">
+                    <span class="card-title-text">2 · The Greenfield SDLC Flow</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-2-body">
+                <div class="card-body-inner">
+                    <p class="definition">Module 04's specification, carried all the way to a release-ready feature.</p>
+
+                    <div class="flow">
+                        <div class="flow-step">
+                            <div class="step-label">1 · Specification</div>
+                            <div class="step-name">From Module 04</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">2 · Architecture &amp; conventions</div>
+                            <div class="step-name">Design approach, project conventions</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">3 · Implementation</div>
+                            <div class="step-name">Copilot-assisted, task by task</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">4 · Test strategy</div>
+                            <div class="step-name">Unit + integration</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">5 · CI / quality checks</div>
+                            <div class="step-name">Automated gates</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">6 · PR / release readiness</div>
+                            <div class="step-name">Review + ship</div>
+                        </div>
+                    </div>
+
+                    <p class="definition"><strong>The throughline:</strong> Copilot assists at every stage — not just implementation — which is what turns "AI wrote some code" into "AI helped ship a validated feature."</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="concept-card">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-3-body">
+                    <span class="card-title-text">3 · Copilot Across the Full SDLC, Not Just Code Generation</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-3-body">
+                <div class="card-body-inner">
+                    <p class="definition">Four places Copilot contributes beyond writing the implementation itself.</p>
+
+                    <div class="flow">
+                        <div class="flow-step">
+                            <div class="step-label">Architecture &amp; planning</div>
+                            <div class="step-name">Draft plan.md options, surface trade-offs, check the approach against the spec's constraints</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">Test generation</div>
+                            <div class="step-name">Generate unit and integration tests directly from the acceptance criteria</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">CI/CD &amp; quality gates</div>
+                            <div class="step-name">Draft pipeline configuration and explain quality-gate failures with the surrounding context</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">PR &amp; release readiness</div>
+                            <div class="step-name">Write PR descriptions, summarize changes, check release readiness against the original spec</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="concept-card">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-4-body">
+                    <span class="card-title-text">4 · Repository Archaeology: Before You Touch Brownfield Code</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-4-body">
+                <div class="card-body-inner">
+                    <p class="definition">Five things worth understanding before the first line of a brownfield change is written.</p>
+
+                    <div class="diagram-container">
+                        <svg viewBox="0 0 560 210" width="560" height="210"
+                             role="img" aria-label="The existing codebase node branches to five things to understand first: architecture and dependencies, existing design patterns, API contracts, existing tests, and coding conventions.">
+                            <line x1="280" y1="60" x2="58"  y2="140" stroke="#334155" stroke-width="2"/>
+                            <line x1="280" y1="60" x2="169" y2="140" stroke="#334155" stroke-width="2"/>
+                            <line x1="280" y1="60" x2="280" y2="140" stroke="#334155" stroke-width="2"/>
+                            <line x1="280" y1="60" x2="391" y2="140" stroke="#334155" stroke-width="2"/>
+                            <line x1="280" y1="60" x2="502" y2="140" stroke="#334155" stroke-width="2"/>
+                            <rect x="204" y="18" width="152" height="44" rx="8" fill="#1e3a8a"/>
+                            <text x="280" y="45" text-anchor="middle" fill="#e2e8f0" font-family="sans-serif" font-size="13" font-weight="700">Existing Codebase</text>
+                            <g font-family="sans-serif" font-size="10.5" fill="#e2e8f0" text-anchor="middle">
+                                <rect x="8"   y="140" width="100" height="56" rx="8" fill="#1e293b" stroke="#334155"/>
+                                <text x="58"  y="163">Architecture &amp;</text><text x="58" y="179">dependencies</text>
+                                <rect x="119" y="140" width="100" height="56" rx="8" fill="#1e293b" stroke="#334155"/>
+                                <text x="169" y="163">Existing design</text><text x="169" y="179">patterns</text>
+                                <rect x="230" y="140" width="100" height="56" rx="8" fill="#1e293b" stroke="#334155"/>
+                                <text x="280" y="163">API</text><text x="280" y="179">contracts</text>
+                                <rect x="341" y="140" width="100" height="56" rx="8" fill="#1e293b" stroke="#334155"/>
+                                <text x="391" y="163">Existing</text><text x="391" y="179">tests</text>
+                                <rect x="452" y="140" width="100" height="56" rx="8" fill="#1e293b" stroke="#334155"/>
+                                <text x="502" y="163">Coding</text><text x="502" y="179">conventions</text>
+                            </g>
+                        </svg>
+                    </div>
+
+                    <p class="definition">Each of these shapes what "minimal change" means for <em>this specific</em> codebase — skipping the step is how well-intentioned changes become regressions.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="concept-card">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-5-body">
+                    <span class="card-title-text">5 · Change-Impact Analysis: Mapping the Blast Radius</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-5-body">
+                <div class="card-body-inner">
+                    <p class="definition">Before writing code, know exactly how far a change could reach.</p>
+
+                    <div class="diagram-container">
+                        <svg viewBox="0 0 460 250" width="460" height="250"
+                             role="img" aria-label="Four nested boxes. Outer: unaffected code, protected by regression tests. Inside it: indirectly affected areas. Inside that: directly dependent modules. Innermost: the change itself, what you are actually modifying.">
+                            <rect x="10" y="10" width="440" height="230" rx="10" fill="#0f172a" stroke="#334155"/>
+                            <text x="230" y="30" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="10.5" font-weight="700">UNAFFECTED CODE — PROTECTED BY REGRESSION TESTS</text>
+                            <rect x="45" y="42" width="370" height="160" rx="10" fill="#3b0764" stroke="#7e22ce"/>
+                            <text x="230" y="62" text-anchor="middle" fill="#e9d5ff" font-family="sans-serif" font-size="10.5" font-weight="700">INDIRECTLY AFFECTED AREAS</text>
+                            <rect x="85" y="74" width="290" height="112" rx="10" fill="#1e293b" stroke="#475569"/>
+                            <text x="230" y="94" text-anchor="middle" fill="#cbd5e1" font-family="sans-serif" font-size="10.5" font-weight="700">DIRECTLY DEPENDENT MODULES</text>
+                            <rect x="130" y="108" width="200" height="62" rx="10" fill="#1e3a8a" stroke="#3b82f6"/>
+                            <text x="230" y="140" text-anchor="middle" fill="#e2e8f0" font-family="sans-serif" font-size="12" font-weight="700">THE CHANGE</text>
+                            <text x="230" y="158" text-anchor="middle" fill="#cbd5e1" font-family="sans-serif" font-size="9.5">what we're actually modifying</text>
+                        </svg>
+                    </div>
+
+                    <p class="definition">The blast radius, <strong>not the file you're editing</strong>, defines the scope of "minimal change" — and the outer ring is exactly what regression testing exists to protect.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="concept-card">
+            <h3 class="card-heading">
+                <button class="card-header" type="button" aria-expanded="false" aria-controls="concept-6-body">
+                    <span class="card-title-text">6 · The Brownfield Safe-Evolution Flow</span>
+                    <span class="toggle-icon" aria-hidden="true">▶</span>
+                </button>
+            </h3>
+            <div class="card-body" id="concept-6-body">
+                <div class="card-body-inner">
+                    <p class="definition">The same rigor as the greenfield flow, shaped by what already exists.</p>
+
+                    <div class="flow">
+                        <div class="flow-step">
+                            <div class="step-label">1 · Repository archaeology</div>
+                            <div class="step-name">Understand what exists</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">2 · Architecture &amp; dependency analysis</div>
+                            <div class="step-name">Map the structure</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">3 · Change-impact analysis</div>
+                            <div class="step-name">Define the blast radius</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">4 · Minimal-change implementation</div>
+                            <div class="step-name">Copilot-assisted, in scope</div>
+                        </div>
+                        <span class="flow-arrow" aria-hidden="true">→</span>
+                        <div class="flow-step">
+                            <div class="step-label">5 · Verify &amp; protect against regression</div>
+                            <div class="step-name">Full suite, before &amp; after</div>
+                        </div>
+                    </div>
+
+                    <p class="definition"><strong>The throughline:</strong> every brownfield stage exists to answer one question before code changes — what could this break, and how do we know it didn't?</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- VISUAL COMPARISON                         -->
+        <!-- ══════════════════════════════════════════ -->
+        <h2 class="section-header">The Minimal-Change Strategy</h2>
+        <p class="definition">Once the blast radius is known, discipline is what keeps it small.</p>
+
+        <div class="comparison">
+            <div class="col pro">
+                <h4>✅ Minimal-change strategy</h4>
+                <ul>
+                    <li>Change only what the feature actually requires</li>
+                    <li>Stay within the identified blast radius</li>
+                    <li>Follow the codebase's existing patterns, even if imperfect</li>
+                    <li>Re-run the full existing test suite before and after</li>
+                </ul>
+            </div>
+            <div class="col con">
+                <h4>❌ Maximal disruption</h4>
+                <ul>
+                    <li>Refactor broadly while implementing the feature</li>
+                    <li>Touch files outside the change's actual scope</li>
+                    <li>Introduce new patterns alongside the existing ones</li>
+                    <li>Skip re-running the existing test suite</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- INTERACTIVE TABS                          -->
+        <!-- ══════════════════════════════════════════ -->
+        <h2 class="section-header">Greenfield vs Brownfield: Where the Workflows Diverge</h2>
+        <p class="definition">Same discipline, different starting constraints. Pick a dimension to compare.</p>
+
+        <div class="tabs" role="tablist" aria-label="Greenfield versus brownfield dimensions">
+            <button class="tab-btn" type="button" role="tab" id="tab-btn-1"
+                    aria-selected="true" aria-controls="tab-1">Starting point</button>
+            <button class="tab-btn" type="button" role="tab" id="tab-btn-2"
+                    aria-selected="false" aria-controls="tab-2">First step</button>
+            <button class="tab-btn" type="button" role="tab" id="tab-btn-3"
+                    aria-selected="false" aria-controls="tab-3">Primary risk</button>
+            <button class="tab-btn" type="button" role="tab" id="tab-btn-4"
+                    aria-selected="false" aria-controls="tab-4">Change scope</button>
+            <button class="tab-btn" type="button" role="tab" id="tab-btn-5"
+                    aria-selected="false" aria-controls="tab-5">Validation</button>
+        </div>
+
+        <div id="tab-1" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-1" tabindex="0">
+            <p><strong>Greenfield:</strong> a blank slate, guided by the spec.</p>
+            <p><strong>Brownfield:</strong> an existing codebase, guided by the spec <em>and</em> existing patterns.</p>
+        </div>
+        <div id="tab-2" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-2" tabindex="0" hidden>
+            <p><strong>Greenfield:</strong> architecture &amp; conventions.</p>
+            <p><strong>Brownfield:</strong> repository archaeology — you cannot design conventions that already exist.</p>
+        </div>
+        <div id="tab-3" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-3" tabindex="0" hidden>
+            <p><strong>Greenfield:</strong> under-specifying requirements.</p>
+            <p><strong>Brownfield:</strong> unintended regression — breaking something that already worked.</p>
+        </div>
+        <div id="tab-4" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-4" tabindex="0" hidden>
+            <p><strong>Greenfield:</strong> bounded by the spec.</p>
+            <p><strong>Brownfield:</strong> bounded by the spec <em>and</em> the blast radius.</p>
+        </div>
+        <div id="tab-5" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-5" tabindex="0" hidden>
+            <p><strong>Greenfield:</strong> acceptance criteria.</p>
+            <p><strong>Brownfield:</strong> acceptance criteria + the full regression suite passing.</p>
+        </div>
+
+        <!-- ══════════════════════════════════════════ -->
+        <!-- SELF-CHECK QUIZ — 5 QUESTIONS             -->
+        <!-- ══════════════════════════════════════════ -->
+        <div class="quiz-section">
+            <h2 class="section-header">Self-Check Quiz</h2>
+
+            <div class="quiz-header">
+                <p>Test your understanding — 5 questions, 70% to pass.</p>
+                <div class="quiz-progress" id="quiz-progress" aria-hidden="true">
+                    <div class="quiz-dot" data-q="1"></div>
+                    <div class="quiz-dot" data-q="2"></div>
+                    <div class="quiz-dot" data-q="3"></div>
+                    <div class="quiz-dot" data-q="4"></div>
+                    <div class="quiz-dot" data-q="5"></div>
+                </div>
+                <div class="quiz-stats" id="quiz-stats" role="status" aria-live="polite"></div>
+            </div>
+
+            <form id="quiz-form">
+                <div id="quiz-container"></div>
+                <p class="quiz-notice" id="quiz-notice" role="alert" hidden></p>
+                <div class="quiz-actions">
+                    <button class="btn btn-primary" type="submit" id="submit-btn">Submit Answers</button>
+                    <button class="btn btn-secondary" type="button" id="reset-btn">Reset</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════ -->
+    <!-- JAVASCRIPT (all inline, zero dependencies)  -->
+    <!-- ════════════════════════════════════════════ -->
+    <script>
+    (function () {
+        'use strict';
+
+        // ── Concept card toggle ────────────────────
+        // Delegated, so no inline onclick and no globals.
+        document.addEventListener('click', function (e) {
+            const header = e.target.closest('.card-header');
+            if (!header) return;
+            const card = header.closest('.concept-card');
+            const open = card.classList.toggle('open');
+            header.setAttribute('aria-expanded', String(open));
+        });
+
+        // ── Tabs ───────────────────────────────────
+        document.addEventListener('click', function (e) {
+            // closest() rather than e.target: a click landing on markup
+            // inside the button would otherwise be missed.
+            const btn = e.target.closest('.tab-btn');
+            if (!btn) return;
+            const list = btn.closest('[role="tablist"]');
+
+            list.querySelectorAll('.tab-btn').forEach(function (b) {
+                b.setAttribute('aria-selected', 'false');
+                const panel = document.getElementById(b.getAttribute('aria-controls'));
+                if (panel) panel.hidden = true;
+            });
+
+            btn.setAttribute('aria-selected', 'true');
+            const active = document.getElementById(btn.getAttribute('aria-controls'));
+            if (active) active.hidden = false;
+        });
+
+        // Arrow-key navigation between tabs, per the WAI-ARIA tabs pattern.
+        document.addEventListener('keydown', function (e) {
+            const btn = e.target.closest('.tab-btn');
+            if (!btn || (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft')) return;
+            const tabs = Array.from(btn.closest('[role="tablist"]').querySelectorAll('.tab-btn'));
+            const next = tabs[(tabs.indexOf(btn) + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
+            next.focus();
+            next.click();
+        });
+
+        // ── Quiz data ──────────────────────────────
+        // `correct` is a 0-based index into `options`.
+        const quizData = [
+            {
+                id: 1,
+                text: "Module 05 runs a greenfield build and a brownfield change back to back. What do the two tracks have in common?",
+                options: [
+                    "They use different methods — brownfield abandons Spec-Driven Development",
+                    "They are built on the same SDD foundation from Module 04; the difference is what must be true before you can safely start implementing",
+                    "They both start with repository archaeology",
+                    "They both skip the specification and work straight from a prompt"
+                ],
+                correct: 1,
+                explanation: "Both tracks inherit Module 04's spec → plan → tasks discipline. What diverges is the pre-implementation work: greenfield designs conventions from scratch, brownfield must first discover the conventions, dependencies, and blast radius that already exist. Repository archaeology is the brownfield first step only."
+            },
+            {
+                id: 2,
+                text: "You are making a brownfield change to one function. What defines the scope of \"minimal change\"?",
+                options: [
+                    "The single file that contains the function",
+                    "The whole module the function lives in",
+                    "The blast radius — the change plus its directly and indirectly dependent code",
+                    "Whatever the feature ticket lists as in scope"
+                ],
+                correct: 2,
+                explanation: "Change-impact analysis maps the blast radius: the change, the modules directly dependent on it, and the areas indirectly affected. That radius — not the file you happen to be editing — is the scope you must stay within and test. The outer ring of unaffected code is what the regression suite protects."
+            },
+            {
+                id: 3,
+                text: "True or False: In Module 05, Copilot's role is limited to writing the implementation code once the plan is set.",
+                options: ["True", "False"],
+                correct: 1,
+                explanation: "False. The module deliberately shows Copilot assisting across the full SDLC — drafting architecture options and trade-offs, generating tests from acceptance criteria, drafting pipeline config and explaining gate failures, and writing PR descriptions and release-readiness checks. That breadth is what turns \"AI wrote some code\" into \"AI helped ship a validated feature.\""
+            },
+            {
+                id: 4,
+                text: "Before the first line of a brownfield change is written, what is the right first move?",
+                options: [
+                    "Start implementing and let the failing tests tell you what you broke",
+                    "Repository archaeology — understand the existing architecture, patterns, API contracts, tests, and conventions",
+                    "Refactor the surrounding code so the new feature fits cleanly",
+                    "Write the new acceptance criteria and go straight to code"
+                ],
+                correct: 1,
+                explanation: "Each of architecture, design patterns, API contracts, existing tests, and coding conventions shapes what \"minimal change\" means for this specific codebase. Implementing first, or refactoring first, both widen the blast radius before you have even mapped it — which is how well-intentioned changes become regressions."
+            },
+            {
+                id: 5,
+                text: "Which primary risk is specific to the brownfield track, not the greenfield track?",
+                options: [
+                    "Under-specifying the requirements",
+                    "Choosing the wrong architecture",
+                    "Unintended regression — breaking behaviour that already worked",
+                    "Spending too long on the specification"
+                ],
+                correct: 2,
+                explanation: "Greenfield's dominant risk is under-specifying requirements — there is no existing behaviour to break. Brownfield's dominant risk is regression, which is why its validation is acceptance criteria plus the full existing test suite passing, and why change scope is bounded by the blast radius as well as the spec."
+            }
+        ];
+
+        const PASS_MARK = 70;
+        const answers = {};
+        let submitted = false;
+
+        const form      = document.getElementById('quiz-form');
+        const container = document.getElementById('quiz-container');
+        const stats     = document.getElementById('quiz-stats');
+        const notice    = document.getElementById('quiz-notice');
+        const submitBtn = document.getElementById('submit-btn');
+        const resetBtn  = document.getElementById('reset-btn');
+
+        function esc(value) {
+            return String(value).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+
+        function renderQuiz() {
+            container.innerHTML = quizData.map(function (q, idx) {
+                const opts = q.options.map(function (opt, i) {
+                    return '<label class="option" data-q="' + q.id + '" data-i="' + i + '">' +
+                             '<input type="radio" name="q' + q.id + '" value="' + i + '">' +
+                             '<span class="marker"></span><span>' + esc(opt) + '</span>' +
+                           '</label>';
+                }).join('');
+
+                return '<fieldset class="question-card" data-q="' + q.id + '">' +
+                         '<legend class="question-number">Question ' + (idx + 1) + ' of ' + quizData.length + '</legend>' +
+                         '<p class="question-text">' + esc(q.text) + '</p>' +
+                         '<div class="options">' + opts + '</div>' +
+                         '<p class="feedback" id="fb-' + q.id + '" role="status" aria-live="polite" hidden></p>' +
+                       '</fieldset>';
+            }).join('');
+        }
+
+        container.addEventListener('change', function (e) {
+            if (submitted || e.target.type !== 'radio') return;
+            const label = e.target.closest('.option');
+            const qId = Number(label.dataset.q);
+
+            // Scoped to .option — .question-card and .quiz-dot carry the same
+            // data-q attribute and must not be caught by this query.
+            container.querySelectorAll('.option[data-q="' + qId + '"]')
+                     .forEach(function (el) { el.classList.remove('selected'); });
+
+            label.classList.add('selected');
+            answers[qId] = Number(label.dataset.i);
+            notice.hidden = true;
+            updateProgress();
+        });
+
+        // Before submission this shows the answered count ONLY. A running
+        // score here would let a learner cycle options and read off the
+        // answers without ever submitting.
+        function updateProgress() {
+            const answered = Object.keys(answers).length;
+
+            if (!submitted) {
+                // Only repaint the dots pre-submit. After grading they carry
+                // correct/incorrect, and resetting them here would wipe that.
+                document.querySelectorAll('.quiz-dot').forEach(function (dot) {
+                    dot.className = 'quiz-dot' + (answers[Number(dot.dataset.q)] !== undefined ? ' answered' : '');
+                });
+                stats.innerHTML = '<span>Answered: <strong>' + answered + '</strong>/' + quizData.length + '</span>';
+                return;
+            }
+
+            const correct = calcScore();
+            const pct = Math.round((correct / quizData.length) * 100);
+            stats.innerHTML =
+                '<span>Correct: <strong>' + correct + '</strong>/' + quizData.length + '</span>' +
+                '<span>Score: <strong>' + pct + '%</strong></span>' +
+                '<span>' + (pct >= PASS_MARK ? 'Passed' : 'Below ' + PASS_MARK + '% — review and retry') + '</span>';
+        }
+
+        function calcScore() {
+            return quizData.filter(function (q) { return answers[q.id] === q.correct; }).length;
+        }
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            // Inline message rather than alert(): alert() is suppressed in
+            // some embedded contexts and cannot be styled or announced.
+            const missing = quizData.find(function (q) { return answers[q.id] === undefined; });
+            if (missing) {
+                notice.textContent = 'Answer all ' + quizData.length + ' questions before submitting.';
+                notice.hidden = false;
+                const card = container.querySelector('.question-card[data-q="' + missing.id + '"]');
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const input = card.querySelector('input');
+                if (input) input.focus();
+                return;
+            }
+
+            submitted = true;
+            notice.hidden = true;
+            submitBtn.disabled = true;
+
+            quizData.forEach(function (q) {
+                const card = container.querySelector('.question-card[data-q="' + q.id + '"]');
+                const wasCorrect = answers[q.id] === q.correct;
+
+                card.querySelectorAll('.option').forEach(function (opt) {
+                    const i = Number(opt.dataset.i);
+                    const input = opt.querySelector('input');
+                    if (input) input.disabled = true;
+                    opt.classList.add('locked');
+                    if (i === q.correct) opt.classList.add('correct');
+                    else if (answers[q.id] === i) opt.classList.add('incorrect');
+                });
+
+                const fb = document.getElementById('fb-' + q.id);
+                fb.textContent = (wasCorrect ? '✓ Correct. ' : '✗ Incorrect. ') + q.explanation;
+                fb.className = 'feedback ' + (wasCorrect ? 'correct' : 'incorrect');
+                fb.hidden = false;
+                card.classList.add(wasCorrect ? 'correct' : 'incorrect');
+
+                const dot = document.querySelector('.quiz-dot[data-q="' + q.id + '"]');
+                dot.className = 'quiz-dot ' + (wasCorrect ? 'correct' : 'incorrect');
+            });
+
+            updateProgress();
+        });
+
+        resetBtn.addEventListener('click', function () {
+            Object.keys(answers).forEach(function (k) { delete answers[k]; });
+            submitted = false;
+            submitBtn.disabled = false;
+            notice.hidden = true;
+            renderQuiz();
+            updateProgress();
+        });
+
+        // ── Init ───────────────────────────────────
+        renderQuiz();
+        updateProgress();
+    })();
+    </script>
+</body>
+</html>

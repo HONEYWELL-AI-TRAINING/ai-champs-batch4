@@ -1,0 +1,23 @@
+TimeFlow X1 — Quick Tips (plain text)
+
+Getting started
+Charge the watch fully before first use — about 90 minutes on the included
+magnetic puck. Press and hold the side button for three seconds to power on,
+then follow the on-watch pairing prompt.
+
+Daily use
+Swipe down for quick settings, swipe up for notifications. A single press of the
+crown returns you to the watch face from anywhere. Double-press the crown to jump
+to your most recent app.
+
+Battery saving
+Turn on Always-On Display only when you need it — leaving it off can add up to a
+full day of battery life. Lowering screen brightness and disabling continuous
+heart-rate tracking also stretch the battery between charges.
+
+Troubleshooting
+If the watch becomes unresponsive, hold both the crown and the side button for
+ten seconds to force a restart. This does not erase your data or settings.
+
+This file is intentionally plain text (no markdown headings) so the demo shows
+how .txt is chunked into overlapping windows rather than per-heading sections.

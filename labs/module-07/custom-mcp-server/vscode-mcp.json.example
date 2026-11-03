@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "build-insights": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "--quiet", "--directory", "${workspaceFolder}", "python", "server.py"]
+    }
+  }
+}

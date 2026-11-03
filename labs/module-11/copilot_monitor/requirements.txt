@@ -1,0 +1,6 @@
+# Tested with: fastapi 0.142, uvicorn 0.54, opentelemetry-proto 1.45, python-dotenv 1.2 (Python 3.12).
+# Unpinned on purpose so pip picks versions that work with your Python (3.10+).
+fastapi
+uvicorn
+opentelemetry-proto
+python-dotenv

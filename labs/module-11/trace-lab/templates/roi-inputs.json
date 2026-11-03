@@ -1,0 +1,34 @@
+{
+  "_read_me": "Workflow: release-notes drafter (trace run-c-bloated). Keys starting with _ are notes and are ignored. EVERY value below is a sample or a placeholder. Replace what you can source and write the source in roi-worksheet.md.",
+
+  "before": {
+    "runs": 200,
+    "_runs": "ASSUMPTION: runs per month. Sample data has only 24 runs.",
+    "acceptance_rate": 0.75,
+    "_acceptance_rate": "SAMPLE: python -m tracelab.decisions data/reviewer-decisions.csv (accepted + edited, of 24)",
+    "tokens_in_per_run": 30800,
+    "tokens_out_per_run": 750,
+    "_tokens": "SAMPLE: traces/run-c-bloated.json, sum over its 3 model calls",
+    "price_in_per_m": 2.0,
+    "price_out_per_m": 8.0,
+    "_price": "PLACEHOLDER: currency per million tokens. Not any model's real price. Use your contract or billing export.",
+    "tooling_per_run": 0.01,
+    "_tooling_per_run": "PLACEHOLDER: hosting, API calls",
+    "review_min_per_run": 3.29,
+    "_review_min_per_run": "SAMPLE: reviewer-decisions.csv, mean review_min over ALL runs, including rejected ones",
+    "edit_min_per_accepted": 2.78,
+    "_edit_min_per_accepted": "SAMPLE: reviewer-decisions.csv, edit minutes summed over kept outputs / kept outputs",
+    "rework_per_accepted": 3.33,
+    "_rework_per_accepted": "ASSUMPTION: 0.11 later defects per kept output (sample) x 30 min to fix at the hourly rate",
+    "hourly_rate": 60,
+    "_hourly_rate": "PLACEHOLDER: loaded cost of an engineer-hour",
+    "manual_min_per_task": 25,
+    "_manual_min_per_task": "PLACEHOLDER: minutes to write the release notes by hand. The deck wants a measured baseline, not a guess."
+  },
+
+  "after": {
+    "tokens_in_per_run": 4000,
+    "_tokens_in_per_run": "ESTIMATE: python -m tracelab.whatif traces/run-c-bloated.json --tool list_commits --to 600",
+    "_assumption": "ASSUMPTION to check: acceptance, review time and edit time do not change after the fix."
+  }
+}

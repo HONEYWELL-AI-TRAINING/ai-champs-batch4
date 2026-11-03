@@ -1,0 +1,148 @@
+{
+ "resourceSpans": [
+  {
+   "scopeSpans": [
+    {
+     "spans": [
+      {
+       "traceId": "00000000000000000000000000000005",
+       "spanId": "0000000000000001",
+       "parentSpanId": "",
+       "name": "invoke_agent",
+       "startTimeUnixNano": "1800000000000000000",
+       "endTimeUnixNano": "1800000002005000000",
+       "attributes": [
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "invoke_agent"
+         }
+        },
+        {
+         "key": "lab.user_question",
+         "value": {
+          "stringValue": "What is the refund approval limit?"
+         }
+        }
+       ],
+       "status": {
+        "code": 1
+       }
+      },
+      {
+       "traceId": "00000000000000000000000000000005",
+       "spanId": "0000000000000002",
+       "parentSpanId": "0000000000000001",
+       "name": "chat sample-model",
+       "startTimeUnixNano": "1800000000000000000",
+       "endTimeUnixNano": "1800000000900000000",
+       "attributes": [
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "chat"
+         }
+        },
+        {
+         "key": "gen_ai.request.model",
+         "value": {
+          "stringValue": "sample-model"
+         }
+        },
+        {
+         "key": "gen_ai.usage.input_tokens",
+         "value": {
+          "intValue": "800"
+         }
+        },
+        {
+         "key": "gen_ai.usage.output_tokens",
+         "value": {
+          "intValue": "60"
+         }
+        }
+       ],
+       "status": {
+        "code": 1
+       }
+      },
+      {
+       "traceId": "00000000000000000000000000000005",
+       "spanId": "0000000000000003",
+       "parentSpanId": "0000000000000001",
+       "name": "execute_tool search_docs",
+       "startTimeUnixNano": "1800000000905000000",
+       "endTimeUnixNano": "1800000000995000000",
+       "attributes": [
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "execute_tool"
+         }
+        },
+        {
+         "key": "gen_ai.tool.name",
+         "value": {
+          "stringValue": "search_docs"
+         }
+        },
+        {
+         "key": "gen_ai.tool.call.arguments",
+         "value": {
+          "stringValue": "{\"query\": \"refund approval limit\"}"
+         }
+        },
+        {
+         "key": "gen_ai.tool.call.result",
+         "value": {
+          "stringValue": "[]"
+         }
+        }
+       ],
+       "status": {
+        "code": 1
+       }
+      },
+      {
+       "traceId": "00000000000000000000000000000005",
+       "spanId": "0000000000000004",
+       "parentSpanId": "0000000000000001",
+       "name": "chat sample-model",
+       "startTimeUnixNano": "1800000001000000000",
+       "endTimeUnixNano": "1800000002000000000",
+       "attributes": [
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "chat"
+         }
+        },
+        {
+         "key": "gen_ai.request.model",
+         "value": {
+          "stringValue": "sample-model"
+         }
+        },
+        {
+         "key": "gen_ai.usage.input_tokens",
+         "value": {
+          "intValue": "1000"
+         }
+        },
+        {
+         "key": "gen_ai.usage.output_tokens",
+         "value": {
+          "intValue": "120"
+         }
+        }
+       ],
+       "status": {
+        "code": 1
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

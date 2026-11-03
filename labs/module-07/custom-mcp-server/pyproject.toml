@@ -1,0 +1,14 @@
+[project]
+name = "build-insights-mcp"
+version = "0.1.0"
+description = "Module 07 lab: a small, read-only custom MCP server built with FastMCP"
+requires-python = ">=3.10"
+dependencies = ["fastmcp>=4.1,<5"]
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-asyncio>=0.24"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]
+testpaths = ["tests"]

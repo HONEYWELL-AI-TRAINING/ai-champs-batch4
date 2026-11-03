@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Copilot Practice Lab</title>
+<style>
+  :root{--bg:#fff;--fg:#1f2328;--mut:#656d76;--card:#f6f8fa;--bd:#d0d7de;--in:#0969da;--out:#1a7f37;--star:#bf8700;--good:#1a7f37;--bad:#cf222e}
+  @media(prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--mut:#8b949e;--card:#161b22;--bd:#30363d;--in:#58a6ff;--out:#3fb950;--star:#e3b341;--good:#3fb950;--bad:#f85149}}
+  body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:14px system-ui,sans-serif}
+  main{max-width:1100px;margin:auto}
+  h2{margin:24px 0 4px}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:16px 0}
+  .tile,.ctl{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:12px}
+  .tile b{display:block;font-size:26px}.tile span{color:var(--mut)}
+  .ctl{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+  .ctl label{display:flex;flex-direction:column;gap:4px;color:var(--mut);font-size:12px}
+  input,select,button.go{font:inherit;padding:6px 8px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--fg)}
+  button.go{background:var(--in);color:#fff;border-color:var(--in);cursor:pointer}
+  button.stop{background:var(--bad);border-color:var(--bad)}
+  button.go:disabled{opacity:.4;cursor:default}
+  .scroll{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--bd);white-space:nowrap}
+  td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+  td.p{white-space:normal;max-width:240px;color:var(--mut)}
+  th{color:var(--mut);font-weight:500}
+  .bar{height:6px;border-radius:3px;background:var(--in);margin-top:3px}
+  .d{font-size:12px}.d.good{color:var(--good)}.d.bad{color:var(--bad)}.d.flat{color:var(--mut)}
+  body:not(.judge) .jcol{display:none}
+  .stars button{background:none;border:0;padding:0 1px;font-size:18px;cursor:pointer;color:var(--star)}
+  small,#status,.note{color:var(--mut)}
+  a{color:var(--in)}
+</style></head><body><main>
+<h1>Copilot Practice Lab <small id="status">connecting…</small></h1>
+
+<form class="ctl" id="ctl">
+  <label>Condition (the practice under test)<input id="cond" list="conds" placeholder="baseline" required></label>
+  <label>Task<input id="task" placeholder="fix-divide-bug" required></label>
+  <button class="go" type="submit">Start new run</button>
+  <button class="go stop" type="button" id="stop">Stop run</button>
+  <span class="note" id="cur"></span>
+</form>
+<datalist id="conds"></datalist>
+<p class="note">Workflow: set condition + task, press <b>Start new run</b>, open a fresh Copilot chat and do the task. Every prompt until the next run is counted towards that run.</p>
+
+<h2>Before / after <small>per run, averaged by condition · first condition is the baseline</small></h2>
+<label class="note">Task filter <select id="tf"></select></label>
+<div class="scroll"><table><thead><tr>
+  <th>Condition</th><th class="n">Runs</th><th class="n">Tokens / run</th><th class="n">Prompts / run</th><th class="n">LLM calls / run</th>
+  <th class="n">Tool calls / run</th><th class="n">Cached in / run</th><th class="n">AIU / run</th><th class="n" id="qh">Quality (1-5)</th><th class="n">Sec / run</th>
+</tr></thead><tbody id="cmp"></tbody></table></div>
+<p class="note">Tokens = input + output. Prompts / run = how many times you had to ask. <span id="qnote"></span> Lower is better except for the quality column. AIU = Copilot's <code>copilot_usage_nano_aiu</code> ÷ 1e9 (cost proxy; unit not verified).</p>
+
+<h2>Prompts <small>(one row per prompt, appears when it finishes) · <a href="/export.csv">export CSV</a></small></h2>
+<div class="scroll"><table><thead><tr><th>Cond.</th><th class="n">Run</th><th>Model</th><th>Prompt</th><th class="n">LLM calls</th><th class="n">Tools</th><th class="n">Input</th><th class="n">Output</th><th class="n">Sec</th><th class="n jcol">Correct</th><th class="n jcol">Follows</th><th class="jcol">Judge says</th><th>You</th></tr></thead>
+<tbody id="rows"></tbody></table></div>
+<p class="note" id="bg"></p>
+</main>
+<script>
+const fmt=n=>Math.round(n).toLocaleString(), $=id=>document.getElementById(id), recs=new Map();
+const td=(v,cls)=>{const e=document.createElement('td');if(cls)e.className=cls;if(v instanceof Node)e.append(v);else e.textContent=v;return e};
+let cfg={judge_enabled:false}, live='connecting…', judgeLabel='';
+const setStatus=()=>{$('status').textContent=[live,judgeLabel].filter(Boolean).join(' · ')};
+const sum=(a,f)=>a.reduce((s,r)=>s+f(r),0), mean=a=>a.length?sum(a,x=>x)/a.length:null;
+const jscore=r=>r.judge?.status==='done'?(r.judge.correctness+r.judge.instruction_following)/2:null;
+const jr=r=>!r.judge?'(judge off)':r.judge.status==='pending'?'judging…':r.judge.reason;
+
+async function post(url,body){return (await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)})).json()}
+function stars(r){const c=document.createElement('td');c.className='stars';
+  for(let i=1;i<=5;i++){const b=document.createElement('button');b.textContent=i<=(r.rating||0)?'★':'☆';b.setAttribute('aria-label',`Rate ${i} of 5`);b.onclick=()=>post('/rate',{id:r.id,rating:i});c.append(b)}return c}
+
+// ---- run / condition aggregation ----
+function runStats(done){
+  const m=new Map();
+  for(const r of done){const k=r.run; if(!m.has(k))m.set(k,{run:k,condition:r.condition,task:r.task,rs:[]});m.get(k).rs.push(r)}
+  return [...m.values()].map(x=>({...x,
+    tokens:sum(x.rs,r=>r.input_tokens+r.output_tokens),prompts:x.rs.length,calls:sum(x.rs,r=>r.llm_calls),tools:sum(x.rs,r=>r.tools.length),
+    cached:sum(x.rs,r=>r.cache_read),aiu:sum(x.rs,r=>r.aiu)/1e9,sec:sum(x.rs,r=>r.duration_ms||0)/1000,
+    judge:mean(x.rs.map(jscore).filter(v=>v!=null)),human:mean(x.rs.map(r=>r.rating).filter(v=>v!=null))}));
+}
+function delta(v,base,lowerBetter=true){
+  if(base==null||v==null||base===0)return null;
+  const p=(v-base)/base*100, good=lowerBetter?p<0:p>0, s=document.createElement('div');
+  s.className='d '+(Math.abs(p)<1?'flat':good?'good':'bad');
+  s.textContent=(Math.abs(p)<1?'≈ ':p<0?'▼ ':'▲ ')+Math.abs(p).toFixed(0)+'%';return s}
+function cell(v,b,{digits=0,lowerBetter=true,bar=0}={}){
+  const c=document.createElement('div');c.textContent=v==null?'–':digits?v.toFixed(digits):fmt(v);
+  if(bar&&v!=null){const x=document.createElement('div');x.className='bar';x.style.width=Math.min(100,v/bar*100)+'%';c.append(x)}
+  const d=delta(v,b,lowerBetter);if(d)c.append(d);return td(c,'n')}
+
+function renderCompare(done){
+  const tasks=[...new Set(done.filter(r=>r.run).map(r=>r.task).filter(Boolean))], sel=$('tf'), cur=sel.value;
+  sel.replaceChildren(new Option('All tasks',''),...tasks.map(t=>new Option(t,t)));sel.value=tasks.includes(cur)?cur:'';
+  const runs=runStats(done.filter(r=>r.run&&(!sel.value||r.task===sel.value)));
+  const conds=[...new Set(runs.sort((a,b)=>a.run-b.run).map(r=>r.condition))];
+  const agg=conds.map(c=>{const rs=runs.filter(r=>r.condition===c),f=k=>mean(rs.map(r=>r[k]).filter(v=>v!=null));
+    return {c,n:rs.length,tokens:f('tokens'),prompts:f('prompts'),calls:f('calls'),tools:f('tools'),cached:f('cached'),aiu:f('aiu'),quality:f(cfg.judge_enabled?'judge':'human'),sec:f('sec'),
+            range:`min ${fmt(Math.min(...rs.map(r=>r.tokens)))} – max ${fmt(Math.max(...rs.map(r=>r.tokens)))}`}});
+  const b=agg[0], max=Math.max(1,...agg.map(a=>a.tokens));
+  $('cmp').replaceChildren(...agg.map((a,i)=>{const tr=document.createElement('tr'),first=i===0,B=k=>first?null:b[k];
+    const t=cell(a.tokens,B('tokens'),{bar:max});t.title=a.range+' tokens across runs';
+    tr.append(td(a.c+(first?' (baseline)':'')),td(a.n+(a.n<3?' ⚠':''),'n'),t,cell(a.prompts,B('prompts'),{digits:1}),cell(a.calls,B('calls'),{digits:1}),
+      cell(a.tools,B('tools'),{digits:1}),cell(a.cached,B('cached')),cell(a.aiu,B('aiu'),{digits:2}),cell(a.quality,B('quality'),{digits:1,lowerBetter:false}),cell(a.sec,B('sec'),{digits:0}));
+    return tr}));
+}
+
+function render(){
+  document.body.classList.toggle('judge',cfg.judge_enabled);
+  $('qh').textContent=cfg.judge_enabled?'Judge (1-5)':'Your rating (1-5)';
+  $('qnote').textContent=cfg.judge_enabled?'Judge = mean of correctness and instruction following.':'Your rating = the stars you give each answer (judge is off, so rate answers yourself or the column shows –).';
+  const all=[...recs.values()], done=all.filter(r=>r.done), bg=all.filter(r=>!r.done);
+  $('bg').textContent=bg.length?`Background / unfinished calls (not counted): ${sum(bg,r=>r.llm_calls)} calls, ${fmt(sum(bg,r=>r.input_tokens+r.output_tokens))} tokens`:'';
+  $('conds').replaceChildren(...[...new Set(done.filter(r=>r.run).map(r=>r.condition))].map(c=>new Option(c)));
+  renderCompare(done);
+  $('rows').replaceChildren(...[...done].reverse().map(r=>{const tr=document.createElement('tr'),j=jscore(r);
+    tr.append(td(r.condition),td(r.run||'–','n'),td(r.model),td(r.prompt||'(enable captureContent)','p'),td(r.llm_calls,'n'),td(r.tools.length,'n'),
+      td(fmt(r.input_tokens),'n'),td(fmt(r.output_tokens),'n'),td(r.duration_ms==null?'':(r.duration_ms/1000).toFixed(1),'n'),
+      td(r.judge?.status==='done'?r.judge.correctness:'','n jcol'),td(r.judge?.status==='done'?r.judge.instruction_following:'','n jcol'),td(jr(r),'p jcol'),stars(r));return tr}));
+}
+
+// ---- controls ----
+function showCur(l){const on=l&&l.run;$('stop').disabled=!on;
+  $('cur').textContent=on?`● Recording: ${l.condition} · ${l.task} · run #${l.run}`:'Not recording — prompts are not counted in the comparison.'}
+fetch('/config').then(r=>r.json()).then(l=>{cfg=l;render();showCur(l);judgeLabel=l.judge_enabled?`judge: ${l.judge_model}`:'judge: off';setStatus();if(l.run){$('cond').value=l.condition;$('task').value=l.task}});
+$('ctl').onsubmit=async e=>{e.preventDefault();showCur(await post('/config',{condition:$('cond').value,task:$('task').value}))};
+$('stop').onclick=async()=>showCur(await post('/stop',{}));
+$('tf').onchange=render;
+
+const es=new EventSource('/stream');
+es.onopen=()=>{live='● live';setStatus()}; es.onerror=()=>{live='disconnected';setStatus()};
+es.onmessage=m=>{const r=JSON.parse(m.data);recs.set(r.id,r);render()};
+</script></body></html>

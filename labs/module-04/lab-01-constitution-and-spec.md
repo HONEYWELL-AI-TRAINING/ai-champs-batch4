@@ -35,7 +35,7 @@ files during `init`). Older Spec Kit uses bare names: `/constitution`,
 
 ## Step 1 — Initialise Spec Kit
 
-From `labs/module-01/` (your workspace root):
+From your project root:
 
 **macOS / Linux**
 
@@ -106,8 +106,7 @@ Feed the brief in. Reference the file so Copilot reads the whole thing:
 ```
 /speckit.specify
 
-Build the feature described in docs/feature-task-search.md — a task search on the Engineering Task Board. Honour the constitution. Do not decide
-implementation details (framework, table columns beyond the obvious) — that is
+Build the feature described in docs/feature-task-comments.md — support task comments on the Engineering Task Board. Honour the constitution. Do not decide implementation details (framework, table columns beyond the obvious) — that is
 for /speckit.plan.
 ```
 

@@ -1,0 +1,14 @@
+[project]
+name = "module10-code-agent"
+version = "0.1.0"
+description = "Module 10 labs: a code-based agent with the Copilot SDK, grounded with a simple RAG pipeline"
+requires-python = ">=3.11"
+dependencies = ["github-copilot-sdk>=1.0.22,<2"]
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-asyncio>=0.24"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]
+testpaths = ["tests"]

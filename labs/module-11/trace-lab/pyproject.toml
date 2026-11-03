@@ -1,0 +1,13 @@
+[project]
+name = "trace-lab"
+version = "0.1.0"
+description = "Module 11 lab: read agent traces, price a workflow, decide. Standard library only."
+requires-python = ">=3.10"
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

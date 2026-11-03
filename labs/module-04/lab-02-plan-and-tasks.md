@@ -35,7 +35,7 @@ In Copilot Chat:
 ```
 /speckit.plan
 
-Target the Python backend first (we port to .NET and Java in Lab 03). Use the
+Target the Python backend first (we port to .NET and Java later). Use the
 existing stack and patterns — FastAPI, SQLAlchemy async, the repository/service/
 router layering already in backend-python/. Frontend: React + the existing
 services/ + components/ structure, plain CSS.

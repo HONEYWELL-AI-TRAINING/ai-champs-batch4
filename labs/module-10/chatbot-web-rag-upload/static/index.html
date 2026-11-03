@@ -1,0 +1,1207 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Module 6 — RAG Chatbot (Upload)</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Header */
+      .topbar {
+        background: #1e293b;
+        border-bottom: 1px solid #334155;
+        padding: 12px 20px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .brand {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #22d3ee;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .brand-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #34d399;
+        animation: pulse 1.6s infinite ease-in-out;
+      }
+      @keyframes pulse {
+        50% {
+          opacity: 0.4;
+          transform: scale(0.8);
+        }
+      }
+      .topbar-spacer {
+        flex: 1;
+      }
+      .selector {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .selector label {
+        font-size: 0.74rem;
+        color: #94a3b8;
+      }
+      select {
+        background: #0f172a;
+        border: 1px solid #334155;
+        border-radius: 7px;
+        color: #e2e8f0;
+        padding: 6px 10px;
+        font-size: 0.82rem;
+        font-family: inherit;
+        cursor: pointer;
+      }
+      select:focus {
+        border-color: #06b6d4;
+        outline: none;
+      }
+      .btn {
+        padding: 7px 14px;
+        border-radius: 7px;
+        border: none;
+        cursor: pointer;
+        font-size: 0.8rem;
+        font-weight: 600;
+        transition: all 0.15s;
+      }
+      .btn-secondary {
+        background: #0f172a;
+        border: 1px solid #334155;
+        color: #94a3b8;
+      }
+      .btn-secondary:hover {
+        border-color: #06b6d4;
+        color: #e2e8f0;
+      }
+
+      /* Main layout */
+      .layout {
+        flex: 1;
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 0;
+        overflow: hidden;
+      }
+      .chat-col {
+        display: flex;
+        flex-direction: column;
+        padding: 24px;
+        overflow: hidden;
+        max-width: 900px;
+        width: 100%;
+        margin: 0 auto;
+      }
+      .right-col {
+        background: #1e293b;
+        border-left: 1px solid #334155;
+        padding: 20px;
+        overflow-y: auto;
+      }
+
+      /* Chat window */
+      .chat-window {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px 4px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .msg {
+        display: flex;
+        gap: 12px;
+        max-width: 90%;
+      }
+      .msg.user {
+        align-self: flex-end;
+        flex-direction: row-reverse;
+      }
+      .avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #1e293b;
+        border: 1.5px solid #334155;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.95rem;
+        flex-shrink: 0;
+      }
+      .msg.user .avatar {
+        background: rgba(6, 182, 212, 0.15);
+        border-color: #06b6d4;
+      }
+      .bubble {
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 14px;
+        padding: 11px 15px;
+        font-size: 0.9rem;
+        line-height: 1.55;
+        color: #cbd5e1;
+      }
+      .msg.user .bubble {
+        background: rgba(6, 182, 212, 0.1);
+        border-color: rgba(6, 182, 212, 0.35);
+        color: #67e8f9;
+      }
+      .msg.bot .bubble {
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .msg.bot .bubble strong {
+        color: #f1f5f9;
+      }
+      .msg-meta {
+        font-size: 0.66rem;
+        color: #475569;
+        margin-top: 4px;
+        font-family: "Consolas", monospace;
+      }
+      .msg.user .msg-meta {
+        text-align: right;
+      }
+      /* Inline citation chips under a bot reply */
+      .cites {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-top: 6px;
+      }
+      .cite {
+        font-size: 0.66rem;
+        color: #5eead4;
+        background: rgba(20, 184, 166, 0.1);
+        border: 1px solid rgba(20, 184, 166, 0.3);
+        border-radius: 99px;
+        padding: 2px 8px;
+        font-family: "Consolas", monospace;
+      }
+      .cursor {
+        display: inline-block;
+        width: 7px;
+        height: 14px;
+        background: #22d3ee;
+        vertical-align: text-bottom;
+        animation: blink 0.8s infinite;
+        margin-left: 2px;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+      .typing {
+        display: flex;
+        gap: 4px;
+        padding: 4px 0;
+      }
+      .typing span {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #475569;
+        animation: typing 1.2s infinite;
+      }
+      .typing span:nth-child(2) {
+        animation-delay: 0.15s;
+      }
+      .typing span:nth-child(3) {
+        animation-delay: 0.3s;
+      }
+      @keyframes typing {
+        0%,
+        80%,
+        100% {
+          opacity: 0.3;
+          transform: scale(0.7);
+        }
+        40% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      .guard-badge {
+        display: inline-block;
+        font-size: 0.66rem;
+        padding: 2px 8px;
+        border-radius: 99px;
+        margin-bottom: 4px;
+      }
+      .guard-badge.input {
+        background: rgba(251, 146, 60, 0.12);
+        color: #fdba74;
+        border: 1px solid rgba(251, 146, 60, 0.3);
+      }
+      .guard-badge.output {
+        background: rgba(239, 68, 68, 0.1);
+        color: #fca5a5;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+      }
+
+      /* Composer */
+      .composer {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 14px;
+        padding: 8px 8px 8px 16px;
+      }
+      .composer textarea {
+        flex: 1;
+        background: transparent;
+        border: none;
+        color: #e2e8f0;
+        font-size: 0.92rem;
+        font-family: inherit;
+        resize: none;
+        outline: none;
+        line-height: 1.5;
+        padding: 8px 0;
+        max-height: 140px;
+      }
+      .composer .send-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        border: none;
+        background: #06b6d4;
+        color: #0f172a;
+        font-weight: 800;
+        cursor: pointer;
+        font-size: 1.05rem;
+        transition: all 0.15s;
+        flex-shrink: 0;
+      }
+      .composer .send-btn:hover {
+        background: #22d3ee;
+      }
+      .composer .send-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .composer .cancel-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        border: none;
+        background: #ef4444;
+        color: white;
+        font-weight: 800;
+        cursor: pointer;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+      }
+
+      .composer-hint {
+        font-size: 0.7rem;
+        color: #475569;
+        margin-top: 6px;
+        text-align: center;
+      }
+
+      /* Right-side info */
+      .right-col h3 {
+        font-size: 0.7rem;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 8px;
+        margin-top: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .right-col h3:first-child {
+        margin-top: 0;
+      }
+      .persona-card {
+        background: #0f172a;
+        border: 1px solid #334155;
+        border-radius: 10px;
+        padding: 12px;
+        margin-bottom: 4px;
+      }
+      .persona-card .pc-emoji {
+        font-size: 1.4rem;
+        margin-bottom: 4px;
+      }
+      .persona-card .pc-name {
+        font-size: 0.92rem;
+        font-weight: 700;
+        color: #f1f5f9;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .rag-pill {
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        color: #5eead4;
+        background: rgba(20, 184, 166, 0.12);
+        border: 1px solid rgba(20, 184, 166, 0.4);
+        border-radius: 99px;
+        padding: 1px 7px;
+      }
+      .rag-pill.off {
+        color: #64748b;
+        background: #0f172a;
+        border-color: #334155;
+      }
+      .persona-card .pc-tag {
+        font-size: 0.72rem;
+        color: #94a3b8;
+        margin-top: 4px;
+      }
+
+      /* Upload / knowledge-base panel */
+      .dropzone {
+        border: 1.5px dashed #334155;
+        border-radius: 10px;
+        background: #0f172a;
+        padding: 16px 12px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .dropzone:hover,
+      .dropzone.drag {
+        border-color: #06b6d4;
+        background: rgba(6, 182, 212, 0.06);
+      }
+      .dz-icon {
+        font-size: 1.5rem;
+        opacity: 0.8;
+      }
+      .dz-title {
+        font-size: 0.8rem;
+        color: #cbd5e1;
+        margin-top: 4px;
+        font-weight: 600;
+      }
+      .dz-sub {
+        font-size: 0.68rem;
+        color: #64748b;
+        margin-top: 2px;
+      }
+      .kb-actions {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .kb-actions .btn {
+        flex: 1;
+        padding: 6px 8px;
+        font-size: 0.72rem;
+      }
+      .kb-status {
+        font-size: 0.68rem;
+        color: #64748b;
+        margin-top: 6px;
+        min-height: 14px;
+        line-height: 1.4;
+      }
+      .kb-status.err {
+        color: #fca5a5;
+      }
+      .kb-status.ok {
+        color: #5eead4;
+      }
+      .doc-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #0f172a;
+        border: 1px solid #334155;
+        border-radius: 8px;
+        padding: 7px 10px;
+        margin-bottom: 6px;
+      }
+      .doc-icon {
+        font-size: 0.9rem;
+        flex-shrink: 0;
+      }
+      .doc-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .doc-name {
+        font-size: 0.74rem;
+        color: #e2e8f0;
+        font-family: "Consolas", monospace;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .doc-meta {
+        font-size: 0.64rem;
+        color: #64748b;
+      }
+      .doc-del {
+        background: transparent;
+        border: none;
+        color: #64748b;
+        cursor: pointer;
+        font-size: 0.9rem;
+        flex-shrink: 0;
+        line-height: 1;
+      }
+      .doc-del:hover {
+        color: #fca5a5;
+      }
+      .docs-empty {
+        font-size: 0.72rem;
+        color: #475569;
+        line-height: 1.5;
+      }
+      .kb-count {
+        font-size: 0.62rem;
+        color: #5eead4;
+        background: rgba(20, 184, 166, 0.1);
+        border: 1px solid rgba(20, 184, 166, 0.3);
+        border-radius: 99px;
+        padding: 1px 7px;
+        text-transform: none;
+        letter-spacing: 0;
+      }
+
+      /* Retrieved-context panel */
+      .src-empty {
+        font-size: 0.74rem;
+        color: #475569;
+        line-height: 1.5;
+      }
+      .src-card {
+        background: #0f172a;
+        border: 1px solid #334155;
+        border-left: 3px solid #14b8a6;
+        border-radius: 8px;
+        padding: 9px 11px;
+        margin-bottom: 8px;
+      }
+      .src-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 5px;
+      }
+      .src-name {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #5eead4;
+        font-family: "Consolas", monospace;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .src-score {
+        font-size: 0.64rem;
+        color: #64748b;
+        font-family: "Consolas", monospace;
+        flex-shrink: 0;
+      }
+      .src-title {
+        font-size: 0.68rem;
+        color: #94a3b8;
+        margin-bottom: 4px;
+      }
+      .src-text {
+        font-size: 0.7rem;
+        color: #94a3b8;
+        line-height: 1.45;
+        max-height: 64px;
+        overflow: hidden;
+      }
+      .examples {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .ex-btn {
+        background: #0f172a;
+        border: 1px solid #334155;
+        border-radius: 7px;
+        color: #94a3b8;
+        padding: 8px 10px;
+        font-size: 0.74rem;
+        text-align: left;
+        cursor: pointer;
+        transition: all 0.15s;
+        font-family: inherit;
+        line-height: 1.4;
+      }
+      .ex-btn:hover {
+        border-color: #06b6d4;
+        color: #cbd5e1;
+      }
+
+      /* Empty state */
+      .empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+        color: #64748b;
+        text-align: center;
+        padding: 40px 20px;
+        gap: 12px;
+      }
+      .empty-icon {
+        font-size: 2.4rem;
+        opacity: 0.6;
+      }
+      .empty-title {
+        font-size: 1rem;
+        color: #94a3b8;
+      }
+      .empty-sub {
+        font-size: 0.82rem;
+        color: #475569;
+        max-width: 360px;
+      }
+
+      @media (max-width: 760px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        .right-col {
+          border-left: none;
+          border-top: 1px solid #334155;
+          max-height: 320px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="brand">
+        <span class="brand-dot"></span>Module 6 — RAG Chatbot · Upload
+      </div>
+      <div class="topbar-spacer"></div>
+      <div class="selector">
+        <label>Persona</label>
+        <select id="personaSelect"></select>
+      </div>
+      <div class="selector">
+        <label>Memory</label>
+        <select id="strategySelect">
+          <option value="sliding">Sliding window</option>
+          <option value="full">Full history</option>
+          <option value="summary">Running summary</option>
+        </select>
+      </div>
+      <button class="btn btn-secondary" onclick="resetSession()">Reset chat</button>
+    </div>
+
+    <div class="layout">
+      <div class="chat-col">
+        <div class="chat-window" id="chatWindow">
+          <div class="empty" id="emptyState">
+            <div class="empty-icon">📄</div>
+            <div class="empty-title">Upload a document, then ask about it</div>
+            <div class="empty-sub">
+              Drop a <strong>.txt</strong>, <strong>.md</strong>, or
+              <strong>.pdf</strong> into the <strong>Knowledge base</strong> panel
+              (or click <em>Load samples</em>). Sage embeds it, stores it in a
+              vector index, and answers <em>only</em> from what you uploaded.
+            </div>
+          </div>
+        </div>
+
+        <div class="composer">
+          <textarea
+            id="composer"
+            rows="1"
+            placeholder="Type a message — Enter to send, Shift+Enter for newline"
+          ></textarea>
+          <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+            ▶
+          </button>
+          <button
+            class="cancel-btn"
+            id="cancelBtn"
+            onclick="cancelStream()"
+            style="display: none"
+          >
+            ⏹
+          </button>
+        </div>
+        <div class="composer-hint" id="composerHint">Ready.</div>
+      </div>
+
+      <div class="right-col">
+        <div class="persona-card" id="personaCard">
+          <div class="pc-emoji" id="pcEmoji">🔎</div>
+          <div class="pc-name">
+            <span id="pcName">Sage</span>
+            <span class="rag-pill" id="pcRag">RAG</span>
+          </div>
+          <div class="pc-tag" id="pcTag">Answers from your uploaded documents</div>
+        </div>
+
+        <h3>
+          <span>Knowledge base</span>
+          <span class="kb-count" id="kbCount">0 chunks</span>
+        </h3>
+        <div
+          class="dropzone"
+          id="dropzone"
+          onclick="document.getElementById('fileInput').click()"
+        >
+          <div class="dz-icon">⬆️</div>
+          <div class="dz-title">Drop files or click to upload</div>
+          <div class="dz-sub">.txt · .md · .pdf</div>
+        </div>
+        <input
+          type="file"
+          id="fileInput"
+          accept=".txt,.md,.pdf,text/plain,text/markdown,application/pdf"
+          multiple
+          style="display: none"
+        />
+        <div class="kb-actions">
+          <button class="btn btn-secondary" onclick="indexSamples()">
+            Load samples
+          </button>
+          <button class="btn btn-secondary" onclick="clearDocs()">Clear all</button>
+        </div>
+        <div class="kb-status" id="kbStatus"></div>
+        <div id="docsBox" style="margin-top: 8px"></div>
+
+        <h3>Retrieved context</h3>
+        <div id="sourcesBox">
+          <div class="src-empty" id="sourcesEmpty">
+            No retrieval yet. With a RAG persona, the top matching chunks of your
+            uploaded documents appear here each turn.
+          </div>
+        </div>
+
+        <h3>Try asking</h3>
+        <div class="examples" id="examplesBox"></div>
+      </div>
+    </div>
+
+    <script>
+      const SESSION = {
+        sid: null,
+        persona: "sage",
+        strategy: "sliding",
+        personas: [],
+        rag: true,
+      };
+      let abortCtl = null;
+
+      const EXAMPLES = {
+        sage: [
+          "Summarize the uploaded documents in 3 bullets.",
+          "What does the document say about warranty?",
+          "Can I swim with the watch?",
+          "How long does the battery last?",
+        ],
+        nova: [
+          "Explain what RAG is in plain English.",
+          "What's the capital of Japan?",
+          "Give me three tips for studying.",
+        ],
+      };
+
+      function currentPersona() {
+        return (
+          SESSION.personas.find((x) => x.key === SESSION.persona) ||
+          SESSION.personas[0]
+        );
+      }
+
+      async function loadPersonas() {
+        const res = await fetch("/api/personas");
+        SESSION.personas = await res.json();
+        const sel = document.getElementById("personaSelect");
+        sel.innerHTML = "";
+        for (const p of SESSION.personas) {
+          const opt = document.createElement("option");
+          opt.value = p.key;
+          opt.textContent = `${p.emoji} ${p.name}`;
+          sel.appendChild(opt);
+        }
+        sel.value = SESSION.persona;
+        renderPersonaCard();
+        renderExamples();
+      }
+
+      document.getElementById("personaSelect").onchange = (e) => {
+        SESSION.persona = e.target.value;
+        renderPersonaCard();
+        renderExamples();
+        resetSession();
+      };
+      document.getElementById("strategySelect").onchange = (e) => {
+        SESSION.strategy = e.target.value;
+        resetSession();
+      };
+
+      function renderPersonaCard() {
+        const p = currentPersona();
+        if (!p) return;
+        SESSION.rag = !!p.rag;
+        document.getElementById("pcEmoji").textContent = p.emoji;
+        document.getElementById("pcName").textContent = p.name;
+        document.getElementById("pcTag").textContent = p.tagline;
+        const pill = document.getElementById("pcRag");
+        pill.textContent = p.rag ? "RAG" : "no RAG";
+        pill.className = "rag-pill" + (p.rag ? "" : " off");
+      }
+
+      function renderExamples() {
+        const box = document.getElementById("examplesBox");
+        box.innerHTML = "";
+        for (const ex of EXAMPLES[SESSION.persona] || EXAMPLES.sage) {
+          const b = document.createElement("button");
+          b.className = "ex-btn";
+          b.textContent = ex;
+          b.onclick = () => {
+            document.getElementById("composer").value = ex;
+            sendMessage();
+          };
+          box.appendChild(b);
+        }
+      }
+
+      // ── Knowledge base (upload / index) ──────────────────────────────────────
+
+      function setKbStatus(msg, kind) {
+        const el = document.getElementById("kbStatus");
+        el.textContent = msg || "";
+        el.className = "kb-status" + (kind ? " " + kind : "");
+      }
+
+      function renderDocs(docs) {
+        const box = document.getElementById("docsBox");
+        const total = (docs || []).reduce((s, d) => s + d.chunks, 0);
+        document.getElementById("kbCount").textContent =
+          `${total} chunk${total === 1 ? "" : "s"}`;
+        box.innerHTML = "";
+        if (!docs || docs.length === 0) {
+          box.innerHTML =
+            '<div class="docs-empty">Empty — upload a file or click “Load samples” to build the index.</div>';
+          return;
+        }
+        for (const d of docs) {
+          const row = document.createElement("div");
+          row.className = "doc-row";
+          row.innerHTML = `
+            <span class="doc-icon">${docIcon(d.source)}</span>
+            <div class="doc-body">
+              <div class="doc-name"></div>
+              <div class="doc-meta">${d.chunks} chunk${d.chunks === 1 ? "" : "s"}</div>
+            </div>
+            <button class="doc-del" title="Remove">✕</button>`;
+          row.querySelector(".doc-name").textContent = d.source;
+          row.querySelector(".doc-del").onclick = () => removeDoc(d.source);
+          box.appendChild(row);
+        }
+      }
+
+      function docIcon(name) {
+        const ext = (name.split(".").pop() || "").toLowerCase();
+        return ext === "pdf" ? "📕" : ext === "md" ? "📝" : "📄";
+      }
+
+      async function loadDocuments() {
+        try {
+          const res = await fetch("/api/documents");
+          const data = await res.json();
+          renderDocs(data.documents);
+        } catch {
+          renderDocs([]);
+        }
+      }
+
+      async function uploadFiles(fileList) {
+        const files = Array.from(fileList || []);
+        if (files.length === 0) return;
+        const form = new FormData();
+        for (const f of files) form.append("files", f);
+        setKbStatus(`Indexing ${files.length} file(s)… embedding chunks.`, null);
+        try {
+          const res = await fetch("/api/documents", {
+            method: "POST",
+            body: form,
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            setKbStatus(data.detail || "Upload failed.", "err");
+            return;
+          }
+          renderDocs(data.documents);
+          const added = (data.indexed || []).reduce((s, d) => s + d.chunks, 0);
+          const errs = data.errors || [];
+          if (errs.length) {
+            setKbStatus(
+              `Indexed ${data.indexed.length} file(s). Skipped: ${errs
+                .map((e) => e.source + " (" + e.error + ")")
+                .join(", ")}`,
+              "err",
+            );
+          } else {
+            setKbStatus(
+              `Indexed ${data.indexed.length} file(s) → ${added} new chunk(s). Ask Sage about them!`,
+              "ok",
+            );
+          }
+        } catch (err) {
+          setKbStatus("Upload failed: " + err.message, "err");
+        }
+      }
+
+      async function indexSamples() {
+        setKbStatus("Indexing bundled sample documents…", null);
+        try {
+          const res = await fetch("/api/documents/samples", { method: "POST" });
+          const data = await res.json();
+          if (!res.ok) {
+            setKbStatus(data.detail || "Could not load samples.", "err");
+            return;
+          }
+          renderDocs(data.documents);
+          setKbStatus("Sample documents indexed. Try the example questions below.", "ok");
+        } catch (err) {
+          setKbStatus("Could not load samples: " + err.message, "err");
+        }
+      }
+
+      async function clearDocs() {
+        if (!confirm("Clear the entire knowledge base?")) return;
+        try {
+          const res = await fetch("/api/documents", { method: "DELETE" });
+          const data = await res.json();
+          renderDocs(data.documents || []);
+          clearSources();
+          setKbStatus("Knowledge base cleared.", null);
+        } catch (err) {
+          setKbStatus("Clear failed: " + err.message, "err");
+        }
+      }
+
+      async function removeDoc(source) {
+        try {
+          const res = await fetch(
+            "/api/documents/" + encodeURIComponent(source),
+            { method: "DELETE" },
+          );
+          const data = await res.json();
+          renderDocs(data.documents || []);
+          setKbStatus(`Removed ${source}.`, null);
+        } catch (err) {
+          setKbStatus("Remove failed: " + err.message, "err");
+        }
+      }
+
+      function wireDropzone() {
+        const dz = document.getElementById("dropzone");
+        const input = document.getElementById("fileInput");
+        input.addEventListener("change", () => {
+          uploadFiles(input.files);
+          input.value = "";
+        });
+        ["dragenter", "dragover"].forEach((ev) =>
+          dz.addEventListener(ev, (e) => {
+            e.preventDefault();
+            dz.classList.add("drag");
+          }),
+        );
+        ["dragleave", "drop"].forEach((ev) =>
+          dz.addEventListener(ev, (e) => {
+            e.preventDefault();
+            dz.classList.remove("drag");
+          }),
+        );
+        dz.addEventListener("drop", (e) => {
+          if (e.dataTransfer && e.dataTransfer.files) {
+            uploadFiles(e.dataTransfer.files);
+          }
+        });
+      }
+
+      // ── Retrieved context ────────────────────────────────────────────────────
+
+      function renderSources(hits) {
+        const box = document.getElementById("sourcesBox");
+        box.innerHTML = "";
+        if (!hits || hits.length === 0) {
+          box.innerHTML =
+            '<div class="src-empty">No matching context found — upload a relevant document, or the model will say it doesn\'t know.</div>';
+          return;
+        }
+        for (const h of hits) {
+          const card = document.createElement("div");
+          card.className = "src-card";
+          card.innerHTML = `
+            <div class="src-head">
+              <span class="src-name">[${h.n}] ${escapeHtml(h.source)}</span>
+              <span class="src-score">sim ${h.score}</span>
+            </div>
+            <div class="src-title">${escapeHtml(h.title || "")}</div>
+            <div class="src-text"></div>`;
+          card.querySelector(".src-text").textContent = h.preview;
+          box.appendChild(card);
+        }
+      }
+
+      function clearSources() {
+        document.getElementById("sourcesBox").innerHTML =
+          '<div class="src-empty" id="sourcesEmpty">No retrieval yet. With a RAG persona, the top matching chunks of your uploaded documents appear here each turn.</div>';
+      }
+
+      async function ensureSession() {
+        if (SESSION.sid) return;
+        const res = await fetch("/api/sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            persona: SESSION.persona,
+            strategy: SESSION.strategy,
+          }),
+        });
+        if (!res.ok) throw new Error("failed to create session");
+        const data = await res.json();
+        SESSION.sid = data.session_id;
+      }
+
+      async function resetSession() {
+        if (SESSION.sid) {
+          await fetch(`/api/sessions/${SESSION.sid}`, { method: "DELETE" });
+        }
+        SESSION.sid = null;
+        const p = currentPersona();
+        const icon = SESSION.rag ? "📄" : p ? p.emoji : "🤖";
+        const title = SESSION.rag
+          ? "Upload a document, then ask about it"
+          : "Say hi to get started";
+        const sub = SESSION.rag
+          ? "Sage answers only from documents you upload. Drop a .txt, .md, or .pdf into the Knowledge base panel."
+          : "This persona answers from the model directly — no retrieval.";
+        document.getElementById("chatWindow").innerHTML =
+          `<div class="empty" id="emptyState">
+       <div class="empty-icon">${icon}</div>
+       <div class="empty-title">${title}</div>
+       <div class="empty-sub">${sub}</div>
+     </div>`;
+        clearSources();
+        document.getElementById("composerHint").textContent = "Ready.";
+      }
+
+      function appendUser(text) {
+        hideEmpty();
+        const win = document.getElementById("chatWindow");
+        const wrap = document.createElement("div");
+        wrap.className = "msg user";
+        wrap.innerHTML = `
+    <div class="avatar">🧑</div>
+    <div><div class="bubble"></div></div>`;
+        wrap.querySelector(".bubble").textContent = text;
+        win.appendChild(wrap);
+        win.scrollTop = win.scrollHeight;
+      }
+
+      function appendBotSlot() {
+        hideEmpty();
+        const win = document.getElementById("chatWindow");
+        const p = currentPersona();
+        const wrap = document.createElement("div");
+        wrap.className = "msg bot";
+        wrap.innerHTML = `
+    <div class="avatar">${p ? p.emoji : "🤖"}</div>
+    <div>
+      <div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>
+      <div class="cites"></div>
+      <div class="msg-meta"></div>
+    </div>`;
+        win.appendChild(wrap);
+        win.scrollTop = win.scrollHeight;
+        return {
+          bubble: wrap.querySelector(".bubble"),
+          cites: wrap.querySelector(".cites"),
+          meta: wrap.querySelector(".msg-meta"),
+        };
+      }
+
+      function hideEmpty() {
+        const e = document.getElementById("emptyState");
+        if (e) e.remove();
+      }
+
+      async function sendMessage() {
+        const ta = document.getElementById("composer");
+        const msg = ta.value.trim();
+        if (!msg) return;
+        ta.value = "";
+        autosize();
+
+        await ensureSession();
+        appendUser(msg);
+        const slot = appendBotSlot();
+        setSending(true);
+
+        abortCtl = new AbortController();
+
+        try {
+          const res = await fetch(`/api/sessions/${SESSION.sid}/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: msg }),
+            signal: abortCtl.signal,
+          });
+          if (!res.ok || !res.body) {
+            const text = await res.text();
+            slot.bubble.textContent = `Error: ${text}`;
+            setSending(false);
+            return;
+          }
+
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buf = "";
+          let collected = "";
+          let firstToken = true;
+          let guardBadge = "";
+          const t0 = performance.now();
+          let ttftMs = null;
+
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buf += decoder.decode(value, { stream: true });
+            let idx;
+            while ((idx = buf.indexOf("\n\n")) >= 0) {
+              const raw = buf.slice(0, idx);
+              buf = buf.slice(idx + 2);
+              if (!raw.startsWith("data: ")) continue;
+              const payload = raw.slice(6);
+              let event;
+              try {
+                event = JSON.parse(payload);
+              } catch {
+                continue;
+              }
+
+              if (event.event === "sources") {
+                renderSources(event.hits);
+                for (const h of event.hits) {
+                  const chip = document.createElement("span");
+                  chip.className = "cite";
+                  chip.textContent = `[${h.n}] ${h.source}`;
+                  slot.cites.appendChild(chip);
+                }
+              } else if (event.event === "meta") {
+                const tag = event.rag ? "RAG · " : "";
+                slot.meta.textContent = `↪ ${tag}${event.messages_in_prompt} messages · ~${event.input_tokens_est} in-tok · ${event.strategy}`;
+              } else if (event.event === "delta") {
+                if (firstToken) {
+                  firstToken = false;
+                  ttftMs = Math.round(performance.now() - t0);
+                  slot.bubble.innerHTML = guardBadge;
+                }
+                collected += event.delta;
+                slot.bubble.innerHTML =
+                  guardBadge +
+                  escapeHtml(collected) +
+                  '<span class="cursor"></span>';
+                document.getElementById("chatWindow").scrollTop = 1e9;
+              } else if (event.event === "guardrail") {
+                guardBadge = `<div class="guard-badge ${event.stage}">${event.stage === "input" ? "Input blocked" : "Output blocked"} (${event.reason})</div>`;
+              } else if (event.event === "done") {
+                slot.bubble.innerHTML = guardBadge + escapeHtml(collected);
+                const totalMs = Math.round(performance.now() - t0);
+                slot.meta.textContent =
+                  (ttftMs ? `TTFT ${ttftMs} ms · ` : "") +
+                  `total ${totalMs} ms · ${event.input_tokens} in / ${event.output_tokens} out`;
+              } else if (event.event === "error") {
+                slot.bubble.textContent = `Error: ${event.error}`;
+              }
+            }
+          }
+        } catch (err) {
+          if (err.name === "AbortError") {
+            slot.bubble.innerHTML =
+              slot.bubble.innerHTML.replace(
+                /<span class="cursor"><\/span>/,
+                "",
+              ) +
+              ' <em style="color:#fdba74; font-size:0.75rem;">[cancelled]</em>';
+          } else {
+            slot.bubble.textContent = `Error: ${err.message}`;
+          }
+        }
+        setSending(false);
+      }
+
+      function cancelStream() {
+        if (abortCtl) {
+          abortCtl.abort();
+        }
+      }
+
+      function setSending(busy) {
+        document.getElementById("sendBtn").style.display = busy ? "none" : "";
+        document.getElementById("cancelBtn").style.display = busy ? "" : "none";
+        document.getElementById("composer").disabled = busy;
+        document.getElementById("composerHint").textContent = busy
+          ? "Retrieving + generating… click ⏹ to cancel."
+          : "Ready.";
+      }
+
+      function escapeHtml(s) {
+        return s
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      function autosize() {
+        const ta = document.getElementById("composer");
+        ta.style.height = "auto";
+        ta.style.height = Math.min(140, ta.scrollHeight) + "px";
+      }
+
+      document.getElementById("composer").addEventListener("input", autosize);
+      document.getElementById("composer").addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+
+      wireDropzone();
+      loadPersonas();
+      loadDocuments();
+    </script>
+  </body>
+</html>

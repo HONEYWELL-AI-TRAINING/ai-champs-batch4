@@ -1,0 +1,15 @@
+{
+  "servers": {
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest",
+        "--isolated",
+        "--caps=testing",
+        "--allowed-origins=https://demo.playwright.dev",
+        "--output-dir=${workspaceFolder}/.playwright-mcp"
+      ]
+    }
+  }
+}

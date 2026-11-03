@@ -1,0 +1,9 @@
+{
+  "name": "viewer-check",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@evilmartians/agent-prism-data": "1.0.0",
+    "@evilmartians/agent-prism-types": "1.0.0"
+  }
+}
